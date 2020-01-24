@@ -12,7 +12,7 @@ You will need an API key to access the service. It can be found on the Analysis 
 https://islandcompare.pathogenomics.ca/analysis
 
 For one off analysis use the `./islandcompare.py upload_run` command. For repeated analysis
-please use the `./islandcompare.py upload`, `./islandcompare.py invoke`, and `./islandcompare.py download` commands.
+please use the `./islandcompare.py upload`, `./islandcompare.py run`, and `./islandcompare.py download` commands.
 
 Help:
 -------------
