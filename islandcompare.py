@@ -231,7 +231,7 @@ The Newick dataset can contain identifiers that either refer to the dataset acce
 Keep in mind that dataset labels default to the file name if not provided at upload.
 ''', epilog='See https://islandcompare.pathogenomics.ca/ for a GUI', formatter_class=argparse.RawTextHelpFormatter)
 main.cmd.add_argument('--host', type=str, default='https://galaxy.pathogenomics.ca/', help='Galaxy instance url')
-main.cmd.add_argument('--key', type=str, required=True, help='API key. Key for the default host is provided on the Analysis page at https://islandcompare.pathogenomics.ca/analysis')
+main.cmd.add_argument('--key', type=str, required=True, help='API key. Key for the default host is provided the the instructions on the Analysis page at https://islandcompare.pathogenomics.ca/analysis')
 main.subcmds = main.cmd.add_subparsers(dest='command')
 
 

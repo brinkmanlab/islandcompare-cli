@@ -8,7 +8,7 @@ This script provides a command line interface to a IslandCompare deployment.
 
 The default host is https://galaxy.pathogenomics.ca/
 
-You will need an API key to access the service. It can be found on the Analysis page at
+You will need an API key to access the service. It can be found in the instructions on the Analysis page at
 https://islandcompare.pathogenomics.ca/analysis
 
 For one off analysis use the `./islandcompare.py upload_run` command. For repeated analysis
