@@ -21,7 +21,9 @@ except ImportError as e:
 
 
 upload_history_name = 'Uploaded data'
+upload_history_tag = 'user_data'
 workflow_name = 'IslandCompare unpacked'
+application_tag = 'IslandCompare'
 ext_to_datatype = {
     "genbank": "genbank", "gbk": "genbank", "embl": "embl", "gbff": "genbank", "newick": "newick", "nwk": "newick"
 }
@@ -100,6 +102,7 @@ def get_invocations(self, workflow_id, history_id=None):
     else:
         return self._get(url=url)
 
+
 if bioblend.get_version() == '0.13.0':
     # Monkeypatch until https://github.com/galaxyproject/bioblend/issues/316
     Step.__init__ = step__init__
@@ -139,11 +142,15 @@ def get_upload_history(conn) -> History:
     :param conn: An instance of GalaxyInstance
     :return: A History instance
     """
-    histories = conn.histories.list(name=upload_history_name)
-    if len(histories):
-        return histories[0]
+    histories = conn.histories.list()
+    for history in histories:
+        if upload_history_tag in history.tags:
+            return history
     else:
-        return conn.histories.create(upload_history_name)
+        history = conn.histories.create(name=upload_history_name)
+        history.tags.append(upload_history_tag)
+        history.update(tags=history.tags)
+        return history
 
 
 def main(args: argparse.Namespace):
@@ -322,6 +329,10 @@ def _prepare_inputs(workflow: Workflow, history_label: str, data: List[HistoryDa
     inputs = {label: input.pop() for label, input in workflow.input_labels_to_ids.items()}
     history = workflow.gi.histories.create(history_label)
 
+    history.tags.append(workflow.id)
+    history.tags.append(application_tag)
+    history.update(tags=history.tags)
+
     elements = [
         CollectionElement(
             name='data',
@@ -357,9 +368,6 @@ def invoke(workflow: Workflow, label: str, data: List[HistoryDatasetAssociation]
     inputs, history = _prepare_inputs(workflow, label, data, newick, accession, reference_id)
     invocation = workflow.gi.gi.workflows.invoke_workflow(workflow.id, inputs, history_id=history.id, allow_tool_state_corrections=True)
 
-    history.tags.append(workflow.id)
-    history.update(tags=history.tags)
-
     return invocation['id'], history
 
 
@@ -385,7 +393,7 @@ def invocations(workflow: Workflow) -> List[Dict[str, str]]:
     """
     result = []
     for history in workflow.gi.histories.list():
-        if not history.deleted and workflow.id in history.tags:
+        if not history.deleted and (workflow.id in history.tags or application_tag in history.tags):
             for invocation in workflow.gi.gi.workflows.get_invocations(workflow.id, history_id=history.id):
                 result.append({'id': invocation['id'], 'state': invocation['state'], 'label': history.name})
 

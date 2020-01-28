@@ -36,6 +36,7 @@ class TestResources(TestBase):
         self.assertIsInstance(history, History, "History object not returned")
         self.assertIsNotNone(history.gi, "History object returned does not have attached connection")
         self.assertEqual(history.name, cli.upload_history_name, "Unexpected upload history name")
+        self.assertIn(cli.upload_history_tag, history.tags, "Unexpected upload history name")
         self.assertFalse(history.deleted, "History is deleted")
 
     def test_list_reference(self):
