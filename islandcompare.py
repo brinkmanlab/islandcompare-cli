@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
-import argparse
+
 import sys
+if sys.version_info[0] < 3 or (sys.version_info[0] == 3 and sys.version_info[1] < 8):
+    raise Exception("Must be using Python 3.8 or later")
+
+import argparse
 import json
 import time
 from pathlib import Path
