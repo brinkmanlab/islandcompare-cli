@@ -521,7 +521,7 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
     results(workflow, invocation_id, output_path)
 
     print(f"Wall time: {(time.time() - start)/60} minutes", file=sys.stderr)
-    # Clean up
+    print("Cleaning up..", file=sys.stderr)
     for hda in uploads:
         hda.delete(purge=True)
 
