@@ -165,7 +165,7 @@ def main(args: argparse.Namespace):
     upload_history = get_upload_history(conn)
 
     if args.command == 'upload':
-        print("Dataset ID:", sys.stderr)
+        print("Dataset ID:", file=sys.stderr)
         hda = upload(upload_history, args.path, args.label)
         print(hda.id)
 
@@ -191,7 +191,7 @@ def main(args: argparse.Namespace):
         if args.output and not args.output.is_dir():
             main.cmd.error("Output path must be existing folder")
 
-        print("Analysis ID:", sys.stderr)
+        print("Analysis ID:", file=sys.stderr)
         invocation_id, _ = invoke(workflow, args.label, [upload_history.get_dataset(id) for id in args.data], upload_history.get_dataset(args.newick_accession or args.newick_label), 'newick_accession' in args, args.reference_id)
         print(invocation_id)
         if args.output:
