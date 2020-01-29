@@ -266,7 +266,7 @@ def upload(history: History, path: Path, label: str = '', type: str = None) -> H
 upload.cmd_help = 'Upload datasets'
 upload.cmd = main.subcmds.add_parser('upload', help=upload.cmd_help, description=upload.cmd_help)
 upload.cmd.add_argument('path', type=Path, help='Path of dataset to upload')
-upload.cmd.add_argument('label', type=str, help='Dataset label. Defaults to file name.')
+upload.cmd.add_argument('label', type=str, nargs='?', help='Dataset label. Defaults to file name.')
 
 
 #list data
@@ -519,7 +519,7 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
 round_trip.cmd_help = 'Upload, run analysis, and download results'
 round_trip.cmd = main.subcmds.add_parser('upload_run', parents=[invoke.cmd_flags], help=round_trip.cmd_help, description=round_trip.cmd_help)
 round_trip.cmd.add_argument('paths', metavar='path', type=Path, action='extend', help=argparse.SUPPRESS)
-round_trip.cmd.add_argument('paths', metavar='path', type=Path, action='extend', nargs='+', help='Paths to Genbank or EMBL datasets. Minimum of 2')
+round_trip.cmd.add_argument('paths', metavar='path', type=Path, action='extend', nargs='+', help='Paths to individual Genbank or EMBL datasets. Minimum of 2')
 round_trip.cmd.add_argument('output_path', type=Path, help='Path to output result datasets')
 round_trip.cmd_newick = round_trip.cmd.add_mutually_exclusive_group(required=False)
 round_trip.cmd_newick.add_argument('-a', type=str, metavar='NEWICK_PATH', dest='newick_accession', help='Newick dataset ID containing accession identifiers')
