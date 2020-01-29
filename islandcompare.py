@@ -522,12 +522,12 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
 
     print(f"Wall time: {(time.time() - start)/60} minutes", file=sys.stderr)
     print("Cleaning up..", file=sys.stderr)
+    history.delete(purge=True)
     for hda in uploads:
         hda.delete(purge=True)
 
     if newick:
         newick.delete(purge=True)
-    history.delete(purge=True)
 
 
 round_trip.cmd_help = 'Upload, run analysis, and download results'
