@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import shutil
 import tempfile
 from pathlib import Path
@@ -11,6 +12,7 @@ import islandcompare as cli
 class TestBase(TestCase):
     host = 'https://galaxy.pathogenomics.ca'
     key = 'ada87d7d689a4db602341b898c2e3c2e'
+    cmd_args = ['--host', host, '--key', key]
 
     def setUp(self) -> None:
         super().setUp()
@@ -57,6 +59,10 @@ class TestWithData(TestBase):
             self.assertTrue(datum.is_file(), "Test data not found: " + str(datum))
 
         self.upload_history = cli.get_upload_history(self.conn)
+        if len(self.upload_history.get_datasets()):
+            # History isn't fresh, delete and recreate
+            self.upload_history.delete(purge=True)
+            self.upload_history = cli.get_upload_history(self.conn)
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -67,6 +73,18 @@ class TestUpload(TestWithData):
         upload = cli.upload(self.upload_history, self.data[0])
         self.assertEqual(upload.name, self.data[0].name)
         self.assertFalse(upload.deleted, "Dataset is deleted")
+
+    def test_upload_label(self):
+        upload = cli.upload(self.upload_history, self.data[0], 'test')
+        self.assertEqual('test', upload.name)
+        self.assertFalse(upload.deleted, "Dataset is deleted")
+
+    def test_upload_cmd(self):
+        cli.main(cli.main.cmd.parse_args([*self.cmd_args, 'upload', str(self.data[0]), 'test']))
+        self.upload_history.refresh()
+        data = cli.list_data(self.upload_history)
+        self.assertEqual(1, len(data))
+        self.assertEqual('test', data[0].name)
 
 
 class TestWithDatasets(TestWithData):
@@ -131,6 +149,11 @@ class TestInvoke(TestWithWorkflow):
 
     def test_round_trip(self):
         cli.round_trip(self.upload_history, self.data, self.workflow, 'test', self.output_path)
+        outputs = {path.name for path in self.output_path.glob('*')}
+        self.assertTrue(self.expected_outputs.issubset(outputs))
+
+    def test_round_trip_cmd(self):
+        cli.main(cli.main.cmd.parse_args([*self.cmd_args, 'upload_run', 'test', *[str(datum) for datum in self.data], str(self.output_path)]))
         outputs = {path.name for path in self.output_path.glob('*')}
         self.assertTrue(self.expected_outputs.issubset(outputs))
 

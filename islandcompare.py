@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import sys
-if sys.version_info[0] < 3 or (sys.version_info[0] == 3 and sys.version_info[1] < 8):
-    raise Exception("Must be using Python 3.8 or later")
+if sys.version_info[0] < 3:  # or (sys.version_info[0] == 3 and sys.version_info[1] < 8):
+    raise Exception("Must be using Python 3")  # .8 or later")
 
 import argparse
 import json
@@ -157,6 +157,16 @@ def get_upload_history(conn) -> History:
         return history
 
 
+def _flatten(l):
+    data = []
+    for datum in l:
+        if isinstance(datum, list):
+            data.extend(datum)
+        else:
+            data.append(datum)
+    return data
+
+
 def main(args: argparse.Namespace):
     """
     Script entrance function
@@ -191,8 +201,10 @@ def main(args: argparse.Namespace):
         if args.output and not args.output.is_dir():
             main.cmd.error("Output path must be existing folder")
 
+        # Deal with bug in argparse 'extend' by switching to 'append' and flattening
+        data = _flatten(args.data)
         print("Analysis ID:", file=sys.stderr)
-        invocation_id, _ = invoke(workflow, args.label, [upload_history.get_dataset(id) for id in args.data], upload_history.get_dataset(args.newick_accession or args.newick_label), 'newick_accession' in args, args.reference_id)
+        invocation_id, _ = invoke(workflow, args.label, [upload_history.get_dataset(id) for id in data], upload_history.get_dataset(args.newick_accession or args.newick_label), 'newick_accession' in args, args.reference_id)
         print(invocation_id)
         if args.output:
             results(workflow, invocation_id, args.output)
@@ -213,7 +225,9 @@ def main(args: argparse.Namespace):
 
     elif args.command == 'upload_run':
         workflow = get_workflow(conn)
-        round_trip(upload_history, args.paths, workflow, args.label, args.output, args.newick_accession or args.newick_label, 'newick_accession' in args, args.reference_id)
+        # Deal with bug in argparse 'extend' by switching to append and flattening
+        paths = _flatten(args.paths)
+        round_trip(upload_history, paths, workflow, args.label, args.output_path, args.newick_accession or args.newick_label, 'newick_accession' in args, args.reference_id)
 
     else:
         main.cmd.print_help()
@@ -379,8 +393,8 @@ invoke.cmd_flags = ArgumentParser(add_help=False)  # Make reusable arguments for
 invoke.cmd_help = 'Run IslandCompare'
 invoke.cmd = main.subcmds.add_parser('run', parents=[invoke.cmd_flags], help=invoke.cmd_help, description=invoke.cmd_help)
 invoke.cmd_flags.add_argument('label', type=str, help='Analysis label')
-invoke.cmd.add_argument('data', metavar='ID', type=str, action='extend', help=argparse.SUPPRESS)
-invoke.cmd.add_argument('data', metavar='ID', type=str, action='extend', nargs='+', help='IDs of Genbank or EMBL datasets. Minimum of 2')
+invoke.cmd.add_argument('data', metavar='ID', type=str, action='append', help=argparse.SUPPRESS)
+invoke.cmd.add_argument('data', metavar='ID', type=str, action='append', nargs='+', help='IDs of Genbank or EMBL datasets. Minimum of 2')
 invoke.cmd_flags.add_argument('-r', type=str, dest='reference_id', help="Reference ID to align drafts to. See 'reference' command")
 invoke.cmd.add_argument('-o', type=Path, dest='output', help='Wait for analysis to complete and output results to path')
 invoke.cmd_newick = invoke.cmd.add_mutually_exclusive_group(required=False)
@@ -518,8 +532,8 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
 
 round_trip.cmd_help = 'Upload, run analysis, and download results'
 round_trip.cmd = main.subcmds.add_parser('upload_run', parents=[invoke.cmd_flags], help=round_trip.cmd_help, description=round_trip.cmd_help)
-round_trip.cmd.add_argument('paths', metavar='path', type=Path, action='extend', help=argparse.SUPPRESS)
-round_trip.cmd.add_argument('paths', metavar='path', type=Path, action='extend', nargs='+', help='Paths to individual Genbank or EMBL datasets. Minimum of 2')
+round_trip.cmd.add_argument('paths', metavar='path', type=Path, action='append', help=argparse.SUPPRESS)
+round_trip.cmd.add_argument('paths', metavar='path', type=Path, action='append', nargs='+', help='Paths to individual Genbank or EMBL datasets. Minimum of 2')
 round_trip.cmd.add_argument('output_path', type=Path, help='Path to output result datasets')
 round_trip.cmd_newick = round_trip.cmd.add_mutually_exclusive_group(required=False)
 round_trip.cmd_newick.add_argument('-a', type=str, metavar='NEWICK_PATH', dest='newick_accession', help='Newick dataset ID containing accession identifiers')
