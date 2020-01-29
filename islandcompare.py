@@ -272,9 +272,9 @@ def upload(history: History, path: Path, label: str = '', type: str = None) -> H
         type = ext_to_datatype[path.suffix.lstrip('.')]
 
     if type:
-        return history.upload_file(str(path.resolve()), filename=label, filetype=type)
+        return history.upload_file(str(path.resolve()), file_name=label, file_type=type)
     else:
-        return history.upload_file(str(path.resolve()), filename=label)
+        return history.upload_file(str(path.resolve()), file_name=label)
 
 
 upload.cmd_help = 'Upload datasets'
