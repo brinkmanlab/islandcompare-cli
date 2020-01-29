@@ -14,7 +14,54 @@ https://islandcompare.pathogenomics.ca/analysis
 For one off analysis use the `./islandcompare.py upload_run` command. For repeated analysis
 please use the `./islandcompare.py upload`, `./islandcompare.py run`, and `./islandcompare.py download` commands.
 
-Help:
+
+Tutorial
+--------
+For one off analysis you will want to use the `upload_run` command:
+```shell
+$ mkdir output
+$ ./islandcompare.py --key MYAPIKEY upload_run 'Analysis label' ./data/*.gbk ./output/
+Uploading..
+Running..
+Analysis ID:
+123456789AB
+Waiting..
+```
+`'Analysis label'` is a helpful label to identify the analysis in the `runs` command. In the event you lose connection, 
+you can resume waiting using `./islandcompare.py --key MYAPIKEY download 123456789AB ./output/`. 
+'123456789AB' is the analysis id output when the job was initially ran.
+
+BASH and other compatible shells will automatically expand the 
+[glob pattern](https://www.linuxjournal.com/content/pattern-matching-bash) `./data/*.gbk` to a space separated list of 
+the matching files. You can use this to avoid having to write out each file path individually.
+
+`upload_run` will delete all uploaded data and the analysis upon completion. This allows you to run many analyses in series
+without having to worry about quotas.
+
+The remaining commands are mostly useful when calling islandcompare.py from a script. This allows fine grained control
+of the upload, run, and download process. Once important thing to note is that the output of each of the commands sends
+the human readable messages and headers to stderr while the pertinent information you will want to capture is sent to stdout.
+
+This allows doing something similar to the following in a script:
+```bash
+#!/usr/bin/env bash
+KEY='MYAPIKEY'
+DATASETS=()
+# Upload
+for file in ./data/*.gbk
+do
+    DATASETS+=(`./islandcompare.py --key $KEY upload $file`)
+done
+
+# Run
+RUN=`./islandcompare.py --key $KEY run 'batch job' $DATASETS`
+
+# Wait and download
+./islandcompare.py --key $KEY download $RUN ./output/
+```
+
+
+Help
 -------------
 
 ```
@@ -90,16 +137,20 @@ optional arguments:
 ```
 
 ```
-usage: islandcompare.py run [-h] [-o OUTPUT] [-a NEWICK_ID | -l NEWICK_ID]
-                           ID [ID ...]
+usage: islandcompare.py run [-h] [-r REFERENCE_ID] [-o OUTPUT] [-a NEWICK_ID | -l NEWICK_ID] analysis_label ID [ID ...]
+
 Run IslandCompare
+
 positional arguments:
-  ID            IDs of Genbank or EMBL datasets. Minimum of 2
+  analysis_label   Analysis label
+  ID               IDs of Genbank or EMBL datasets. Minimum of 2
+
 optional arguments:
-  -h, --help    show this help message and exit
-  -o OUTPUT     Wait for analysis to complete and output results to path
-  -a NEWICK_ID  Newick dataset ID containing accession identifiers
-  -l NEWICK_ID  Newick dataset ID containing dataset label identifiers
+  -h, --help       show this help message and exit
+  -r REFERENCE_ID  Reference ID to align drafts to. See 'reference' command
+  -o OUTPUT        Wait for analysis to complete and output results to path
+  -a NEWICK_ID     Newick dataset ID containing accession identifiers
+  -l NEWICK_ID     Newick dataset ID containing dataset label identifiers
 ```
 
 ```
