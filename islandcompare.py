@@ -391,11 +391,11 @@ def invoke(workflow: Workflow, label: str, data: List[HistoryDatasetAssociation]
 
 invoke.cmd_flags = ArgumentParser(add_help=False)  # Make reusable arguments for upload_run
 invoke.cmd_help = 'Run IslandCompare'
+invoke.cmd_flags.add_argument('label', metavar='analysis_label', type=str, help='Analysis label')
+invoke.cmd_flags.add_argument('-r', type=str, dest='reference_id', help="Reference ID to align drafts to. See 'reference' command")
 invoke.cmd = main.subcmds.add_parser('run', parents=[invoke.cmd_flags], help=invoke.cmd_help, description=invoke.cmd_help)
-invoke.cmd_flags.add_argument('label', type=str, help='Analysis label')
 invoke.cmd.add_argument('data', metavar='ID', type=str, action='append', help=argparse.SUPPRESS)
 invoke.cmd.add_argument('data', metavar='ID', type=str, action='append', nargs='+', help='IDs of Genbank or EMBL datasets. Minimum of 2')
-invoke.cmd_flags.add_argument('-r', type=str, dest='reference_id', help="Reference ID to align drafts to. See 'reference' command")
 invoke.cmd.add_argument('-o', type=Path, dest='output', help='Wait for analysis to complete and output results to path')
 invoke.cmd_newick = invoke.cmd.add_mutually_exclusive_group(required=False)
 invoke.cmd_newick.add_argument('-a', type=str, metavar='NEWICK_ID', dest='newick_accession', help='Newick dataset ID containing accession identifiers')
@@ -517,7 +517,8 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
 
     print("Running..", file=sys.stderr)
     invocation_id, history = invoke(workflow, label, uploads, newick, accession, reference_id)
-
+    print("Analysis ID:", file=sys.stderr)
+    print(invocation_id)
     results(workflow, invocation_id, output_path)
 
     print(f"Wall time: {(time.time() - start)/60} minutes", file=sys.stderr)
@@ -544,4 +545,5 @@ if __name__ == '__main__':
     try:
         main(main.cmd.parse_args())
     except bioblend.ConnectionError as e:
+        print(e, file=sys.stderr)
         main.cmd.error(json.loads(e.body)['err_msg'])
