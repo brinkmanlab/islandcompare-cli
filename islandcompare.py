@@ -23,6 +23,7 @@ except ImportError as e:
     print("\n\033[1m\033[91mBioBlend dependency not found.\033[0m Try 'pip install bioblend'.", file=sys.stderr)
     exit(1)
 
+__version__ = '0.1.0'
 
 upload_history_name = 'Uploaded data'
 upload_history_tag = 'user_data'
@@ -250,6 +251,7 @@ Keep in mind that dataset labels default to the file name if not provided at upl
 ''', epilog='See https://islandcompare.pathogenomics.ca/ for a GUI', formatter_class=argparse.RawTextHelpFormatter)
 main.cmd.add_argument('--host', type=str, default='https://galaxy.pathogenomics.ca/', help='Galaxy instance url')
 main.cmd.add_argument('--key', type=str, required=True, help='API key. Key for the default host is provided the the instructions on the Analysis page at https://islandcompare.pathogenomics.ca/analysis')
+main.cmd.add_argument('--version', action='version', version=__version__)
 main.subcmds = main.cmd.add_subparsers(dest='command')
 
 
