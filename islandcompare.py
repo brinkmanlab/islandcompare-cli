@@ -10,7 +10,12 @@ import time
 from pathlib import Path
 from typing import List, Dict
 
-import six
+try:
+    import six
+except ImportError as e:
+    print(e, file=sys.stderr)
+    print("\n\033[1m\033[91mSix dependency not found.\033[0m Try 'pip install six'.", file=sys.stderr)
+    exit(1)
 
 try:
     import bioblend
@@ -112,6 +117,7 @@ def get_invocations(self, workflow_id, history_id=None):
 if bioblend.get_version() == '0.13.0':
     # Monkeypatch until https://github.com/galaxyproject/bioblend/issues/316
     Step.__init__ = step__init__
+    Workflow.BASE_ATTRS += ('owner', 'number_of_steps', 'show_in_tool_panel', 'latest_workflow_uuid')
     Workflow.__init__ = Workflow__init__
     Workflow.parameter_input_ids = parameter_input_ids
     WorkflowClient.get_invocations = get_invocations
@@ -135,7 +141,7 @@ def get_workflow(conn: GalaxyInstance) -> Workflow:
     :param conn: An instance of GalaxyInstance
     :return: A Workflow instance
     """
-    workflows = conn.workflows.list(published=True)  # There should only be one
+    workflows = conn.workflows.list(published=True)
     if not len(workflows):
         print("IslandCompare workflow not found on host", file=sys.stderr)
         exit(1)
