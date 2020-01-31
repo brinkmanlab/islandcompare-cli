@@ -1,0 +1,44 @@
+<tool id="islandcompare-remote" name="Send to IslandCompare" version="1.0" profile="16.04">
+    <description>Submit data to externally hosted IslandCompare service</description>
+    <requirements>
+        <requirement type="package" version="3.7">python</requirement>
+        <requirement type="package" version="0.13.0">bioblend</requirement>
+    </requirements>
+    <version_command><![CDATA[ python3 $__tool_directory__/islandcompare.py --version ]]></version_command>
+    <command detect_errors="aggressive"><![CDATA[
+        mkdir output &&
+        python3 $__tool_directory__/islandcompare.py --key $key --host $host upload_run 'galaxy_submission'
+        #if $newick
+            $nwk_ids $newick
+        #end if
+        #if $reference
+            -r $reference
+        #end if
+        #for input in $inputs
+            $input
+        #end for
+        ./output/
+    ]]></command>
+    <inputs>
+        <param name="inputs" type="data" format="genbank,embl" multiple="true" label="Input" />
+        <param name="newick" type="data" format="newick" optional="true" label="Newick" />
+        <param name="nwk_ids" type="select" value="False" label="Newick identifier type">
+            <option value="False">Accession</option>
+            <option value="True">File name</option>
+        </param>
+        <param name="reference" type="text" label="Reference genome ID" help="Specify a reference genome ID to align draft input data" />
+        <param name="key" type="text" optional="true" label="API Key" />
+        <param name="host" type="text" value="https://galaxy.pathogenomics.ca/" label="Host" />
+    </inputs>
+    <outputs>
+        <data name="Results" format="gff3" label="Results from ${tool.name} on ${on_string}" from_work_dir="output/Results.gff3"/>
+        <data name="Genomic Islands" format="gff3" label="Genomic Islands from ${tool.name} on ${on_string}" from_work_dir="output/Genomic Islands.gff3"/>
+        <data name="Newick" format="newick" label="Phylogenetic tree from ${tool.name} on ${on_string}" from_work_dir="output/Newick.newick"/>
+    </outputs>
+    <help><![CDATA[
+        IslandCompare is designed to process sets of microbial genomes and present genomic island content with an interactive
+        visual designed to enable exploration of cross-genome genomic island content.
+    ]]></help>
+    <citations>
+    </citations>
+</tool>
