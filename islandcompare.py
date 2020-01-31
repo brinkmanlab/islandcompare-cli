@@ -27,7 +27,8 @@ __version__ = '0.1.0'
 
 upload_history_name = 'Uploaded data'
 upload_history_tag = 'user_data'
-workflow_name = 'IslandCompare unpacked'
+workflow_tag = 'islandcompare'
+workflow_owner = 'brinkmanlab'
 application_tag = 'IslandCompare'
 ext_to_datatype = {
     "genbank": "genbank", "gbk": "genbank", "embl": "embl", "gbff": "genbank", "newick": "newick", "nwk": "newick"
@@ -134,11 +135,21 @@ def get_workflow(conn: GalaxyInstance) -> Workflow:
     :param conn: An instance of GalaxyInstance
     :return: A Workflow instance
     """
-    workflows = conn.workflows.list(name=workflow_name, published=True)  # There should only be one
+    workflows = conn.workflows.list(published=True)  # There should only be one
     if not len(workflows):
         print("IslandCompare workflow not found on host", file=sys.stderr)
         exit(1)
-    return workflows[0]
+    for workflow in workflows:
+        if workflow.owner == workflow_owner and workflow_tag in workflow.tags:
+            return workflow
+
+    # Fall back to any owner
+    for workflow in workflows:
+        if workflow_tag in workflow.tags:
+            return workflow
+
+    print("IslandCompare workflow not found on host", file=sys.stderr)
+    exit(1)
 
 
 def get_upload_history(conn) -> History:
