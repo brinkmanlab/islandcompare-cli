@@ -106,13 +106,13 @@ def Workflow__init__(self, wf_dict, gi=None):
     object.__setattr__(self, 'missing_ids', missing_ids)
 
 
-def get_invocations(self, workflow_id, history_id=None):
+def get_invocations(self, workflow_id, history_id=None, user_id=None, include_terminal=True, limit=None, view='collection', step_details=False):
     url = self._invocations_url(workflow_id)
-    if history_id:
-        return self._get(url=url, params={'history_id': history_id})
-    else:
-        return self._get(url=url)
-
+    params = {'include_terminal': include_terminal, 'view': view, 'step_details': step_details}
+    if history_id: params['history_id'] = history_id
+    if user_id: params['user_id'] = user_id
+    if limit: params['limit'] = limit
+    return self._get(url=url, params=params)
 
 if bioblend.get_version() == '0.13.0':
     # Monkeypatch until https://github.com/galaxyproject/bioblend/issues/316
