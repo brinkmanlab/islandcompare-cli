@@ -39,7 +39,7 @@ the matching files. You can use this to avoid having to write out each file path
 without having to worry about quotas.
 
 The remaining commands are mostly useful when calling islandcompare.py from a script. This allows fine grained control
-of the upload, run, and download process. Once important thing to note is that the output of each of the commands sends
+of the upload, run, and download process. One important thing to note is that the output of each of the commands sends
 the human readable messages and headers to stderr while the pertinent information you will want to capture is sent to stdout.
 
 This allows doing something similar to the following in a script:
