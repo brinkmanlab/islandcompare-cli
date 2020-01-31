@@ -6,6 +6,9 @@
     </requirements>
     <version_command><![CDATA[ python3 $__tool_directory__/islandcompare.py --version ]]></version_command>
     <command detect_errors="aggressive"><![CDATA[
+        #if len($inputs) < 2
+            #raise ValueError('IslandCompare requires a minimum of two input datasets')
+        #end if
         mkdir output &&
         python3 $__tool_directory__/islandcompare.py --key $key --host $host upload_run 'galaxy_submission'
         #if $newick
