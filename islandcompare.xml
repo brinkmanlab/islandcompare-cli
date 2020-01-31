@@ -26,8 +26,8 @@
             <option value="False">Accession</option>
             <option value="True">File name</option>
         </param>
-        <param name="reference" type="text" label="Reference genome ID" help="Specify a reference genome ID to align draft input data" />
-        <param name="key" type="text" optional="true" label="API Key" />
+        <param name="reference" type="text" optional="true" label="Reference genome ID" help="Specify a reference genome ID to align draft input data" />
+        <param name="key" type="text" label="API Key" />
         <param name="host" type="text" value="https://galaxy.pathogenomics.ca/" label="Host" />
     </inputs>
     <outputs>
