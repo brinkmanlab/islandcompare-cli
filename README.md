@@ -96,7 +96,7 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   --host HOST           Galaxy instance url
-  --key KEY             API key. Key for the default host is provided on the Analysis page at https://islandcompare.pathogenomics.ca/analysis
+  --key KEY             API key. Key for the default host is provided on the Analysis page at https://islandcompare.ca/analysis
 
 See https://islandcompare.ca/ for a GUI
 ```
