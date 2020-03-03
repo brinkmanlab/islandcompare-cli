@@ -10,7 +10,7 @@ import islandcompare as cli
 
 
 class TestBase(TestCase):
-    host = 'https://galaxy.pathogenomics.ca'
+    host = 'https://galaxy.islandcompare.ca'
     key = 'ada87d7d689a4db602341b898c2e3c2e'
     cmd_args = ['--host', host, '--key', key]
 
