@@ -32,7 +32,7 @@ you can resume waiting using `./islandcompare.py --key MYAPIKEY download 1234567
 '123456789AB' is the analysis id output when the job was initially ran.
 
 BASH and other compatible shells will automatically expand the 
-[glob pattern](https://www.linuxjournal.com/content/pattern-matching-bash) `./data/*.gbk` to a space separated list of 
+[glob pattern](https://www.linuxjournal.com/content/pattern-matching-bash) `./path/to/data/*.gbk` to a space separated list of 
 the matching files. You can use this to avoid having to write out each file path individually.
 
 `upload_run` will delete all uploaded data and the analysis upon completion. This allows you to run many analyses in series
