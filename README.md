@@ -6,10 +6,10 @@ visual designed to enable exploration of cross-genome genomic island content.
 
 This script provides a command line interface to a IslandCompare deployment.
 
-The default host is https://galaxy.pathogenomics.ca/
+The default host is https://galaxy.islandcompare.ca/
 
 You will need an API key to access the service. It can be found in the instructions on the Analysis page at
-https://islandcompare.pathogenomics.ca/analysis
+https://islandcompare.ca/analysis
 
 For one off analysis use the `./islandcompare.py upload_run` command. For repeated analysis
 please use the `./islandcompare.py upload`, `./islandcompare.py run`, and `./islandcompare.py download` commands.
@@ -98,7 +98,7 @@ optional arguments:
   --host HOST           Galaxy instance url
   --key KEY             API key. Key for the default host is provided on the Analysis page at https://islandcompare.pathogenomics.ca/analysis
 
-See https://islandcompare.pathogenomics.ca/ for a GUI
+See https://islandcompare.ca/ for a GUI
 ```
 
 ```
