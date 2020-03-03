@@ -20,7 +20,7 @@ Tutorial
 For one off analysis you will want to use the `upload_run` command:
 ```shell
 $ mkdir output
-$ ./islandcompare.py --key MYAPIKEY upload_run 'Analysis label' ./data/*.gbk ./output/
+$ ./islandcompare.py --key MYAPIKEY upload_run 'Analysis label' ./path/to/data/*.gbk ./output/
 Uploading..
 Running..
 Analysis ID:
