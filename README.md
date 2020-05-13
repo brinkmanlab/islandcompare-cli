@@ -75,7 +75,7 @@ visual designed to enable exploration of cross-genome genomic island content.
 Datasets must be either Genbank or EMBL format.
 
 For one off analysis use the `./islandcompare.py upload_run` command. For repeated analysis
-please use the `./islandcompare.py upload`, `./islandcompare.py invoke`, and `./islandcompare.py download` commands.
+please use the `./islandcompare.py upload`, `./islandcompare.py run`, and `./islandcompare.py download` commands.
 
 If you are providing your own phylogenetic tree it must be in Newick format.
 The Newick dataset can contain identifiers that either refer to the dataset accession or the dataset label.
