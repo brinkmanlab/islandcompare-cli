@@ -416,7 +416,7 @@ invoke.cmd_flags.add_argument('label', metavar='analysis_label', type=str, help=
 invoke.cmd_flags.add_argument('-r', type=str, dest='reference_id', help="Reference ID to align drafts to. See 'reference' command")
 invoke.cmd = main.subcmds.add_parser('run', parents=[invoke.cmd_flags], help=invoke.cmd_help, description=invoke.cmd_help)
 invoke.cmd.add_argument('data', metavar='ID', type=str, action='append', help=argparse.SUPPRESS)
-invoke.cmd.add_argument('data', metavar='ID', type=str, action='append', nargs='+', help='IDs of Genbank or EMBL datasets. Minimum of 2')
+invoke.cmd.add_argument('data', metavar='ID', type=str, action='append', nargs='+', help='IDs of Genbank or EMBL datasets as returned by the upload or list commands. Minimum of 2')
 invoke.cmd.add_argument('-o', type=Path, dest='output', help='Wait for analysis to complete and output results to path')
 invoke.cmd_newick = invoke.cmd.add_mutually_exclusive_group(required=False)
 invoke.cmd_newick.add_argument('-a', type=str, metavar='NEWICK_ID', dest='newick_accession', help='Newick dataset ID containing accession identifiers')

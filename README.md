@@ -143,7 +143,7 @@ Run IslandCompare
 
 positional arguments:
   analysis_label   Analysis label
-  ID               IDs of Genbank or EMBL datasets. Minimum of 2
+  ID               IDs of Genbank or EMBL datasets as returned by the upload or list commands. Minimum of 2
 
 optional arguments:
   -h, --help       show this help message and exit
