@@ -220,8 +220,11 @@ def main(args: argparse.Namespace):
 
         # Deal with bug in argparse 'extend' by switching to 'append' and flattening
         data = _flatten(args.data)
+        newick = None
+        if args.newick_accession or args.newick_label:
+            newick = upload_history.get_dataset(args.newick_accession or args.newick_label)
         print("Analysis ID:", file=sys.stderr)
-        invocation_id, _ = invoke(workflow, args.label, [upload_history.get_dataset(id) for id in data], upload_history.get_dataset(args.newick_accession or args.newick_label), 'newick_accession' in args, args.reference_id)
+        invocation_id, _ = invoke(workflow, args.label, [upload_history.get_dataset(id) for id in data], newick, 'newick_accession' in args, args.reference_id)
         print(invocation_id)
         if args.output:
             results(workflow, invocation_id, args.output)
