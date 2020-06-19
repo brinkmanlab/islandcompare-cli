@@ -189,7 +189,8 @@ def main(args: argparse.Namespace):
     Script entrance function
     """
     conn = GalaxyInstance(args.host, args.key)
-    upload_history = get_upload_history(conn)
+    if args.command not in ('reference', 'runs', 'results', 'cancel'):
+        upload_history = get_upload_history(conn)
 
     if args.command == 'upload':
         print("Dataset ID:", file=sys.stderr)
