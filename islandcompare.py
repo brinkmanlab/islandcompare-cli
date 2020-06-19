@@ -4,10 +4,12 @@ import sys
 if sys.version_info[0] < 3:  # or (sys.version_info[0] == 3 and sys.version_info[1] < 8):
     raise Exception("Must be using Python 3")  # .8 or later")
 
+import traceback
 import argparse
 import json
 import time
 from pathlib import Path
+from collections import namedtuple
 from typing import List, Dict
 
 try:
@@ -29,6 +31,9 @@ except ImportError as e:
     exit(1)
 
 __version__ = '0.1.0'
+
+#import logging
+#logging.basicConfig(level=logging.DEBUG)
 
 upload_history_name = 'Uploaded data'
 upload_history_tag = 'user_data'
@@ -163,10 +168,10 @@ def get_upload_history(conn) -> History:
     :param conn: An instance of GalaxyInstance
     :return: A History instance
     """
-    histories = conn.histories.list()
+    histories = conn.gi.histories.get_histories()
     for history in histories:
-        if upload_history_tag in history.tags:
-            return history
+        if upload_history_tag in history['tags']:
+            return conn.histories.get(history['id'])
     else:
         history = conn.histories.create(name=upload_history_name)
         history.tags.append(upload_history_tag)
@@ -304,7 +309,7 @@ upload.cmd = main.subcmds.add_parser('upload', help=upload.cmd_help, description
 upload.cmd.add_argument('path', type=Path, help='Path of dataset to upload')
 upload.cmd.add_argument('label', type=str, nargs='?', help='Dataset label. Defaults to file name.')
 
-
+HDA = namedtuple('HDA', ('id', 'name'))
 #list data
 def list_data(history: History, type: str = '') -> List[HistoryDatasetAssociation]:
     """
@@ -313,7 +318,8 @@ def list_data(history: History, type: str = '') -> List[HistoryDatasetAssociatio
     :param type: Filter on a type of data
     :return: List of history contents
     """
-    return [dataset for dataset in history.get_datasets() if not dataset.deleted and (not type or dataset.file_ext == type)]
+    #return [dataset for dataset in history.get_datasets() if not dataset.deleted and (not type or dataset.file_ext == type)]
+    return [HDA(i.id, i.name) for i in history.content_infos if i.deleted is False]
 
 
 list_data.cmd_help = 'List uploaded datasets'
@@ -568,4 +574,5 @@ if __name__ == '__main__':
         main(main.cmd.parse_args())
     except bioblend.ConnectionError as e:
         print(e, file=sys.stderr)
+        traceback.print_exc()
         main.cmd.error(json.loads(e.body)['err_msg'])
