@@ -199,11 +199,13 @@ def main(args: argparse.Namespace):
 
     if args.command == 'upload':
         print("Dataset ID:", file=sys.stderr)
+        sys.stderr.flush()
         hda = upload(upload_history, args.path, args.label)
         print(hda.id)
 
     elif args.command == 'list':
         print("ID\tLabel", file=sys.stderr)
+        sys.stderr.flush()
         uploads = list_data(upload_history)
         if len(uploads):
             for data in uploads:
@@ -216,6 +218,7 @@ def main(args: argparse.Namespace):
 
     elif args.command == 'reference':
         print("Reference ID\tName", file=sys.stderr)
+        sys.stderr.flush()
         for genome in list_reference(conn, args.query):
             print(f"{genome[1]}\t{genome[0]}")
 
@@ -230,6 +233,7 @@ def main(args: argparse.Namespace):
         if args.newick_accession or args.newick_label:
             newick = upload_history.get_dataset(args.newick_accession or args.newick_label)
         print("Analysis ID:", file=sys.stderr)
+        sys.stderr.flush()
         invocation_id, _ = invoke(workflow, args.label, [upload_history.get_dataset(id) for id in data], newick, 'newick_accession' in args, args.reference_id)
         print(invocation_id)
         if args.output:
@@ -238,6 +242,7 @@ def main(args: argparse.Namespace):
     elif args.command == 'runs':
         workflow = get_workflow(conn)
         print("ID\tLabel\tState", file=sys.stderr)
+        sys.stderr.flush()
         for invocation in invocations(workflow):
             print(f"{invocation['id']}\t{invocation['label']}\t{invocation['state']}")  # TODO get actual state
 
