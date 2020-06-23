@@ -246,7 +246,7 @@ def main(args: argparse.Namespace):
         for invocation in invocations(workflow):
             print(f"{invocation['id']}\t{invocation['label']}\t{invocation['state']}")  # TODO get actual state
 
-    elif args.command == 'results':
+    elif args.command == 'download':
         workflow = get_workflow(conn)
         results(workflow, args.id, args.path)
 
