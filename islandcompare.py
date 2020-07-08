@@ -8,6 +8,7 @@ import traceback
 import argparse
 import json
 import time
+import re
 from pathlib import Path
 from collections import namedtuple
 from typing import List, Dict
@@ -196,6 +197,10 @@ def main(args: argparse.Namespace):
     conn = GalaxyInstance(args.host, args.key)
     if args.command not in ('reference', 'runs', 'results', 'cancel'):
         upload_history = get_upload_history(conn)
+
+    if 'reference_id' in args:
+        # Attempt to recover from user entering accession rather than reference id
+        args.reference_id = re.sub('\W', '_', args.reference_id)
 
     if args.command == 'upload':
         print("Dataset ID:", file=sys.stderr)
