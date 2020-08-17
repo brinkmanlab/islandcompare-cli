@@ -198,7 +198,7 @@ def main(args: argparse.Namespace):
     if args.command not in ('reference', 'runs', 'results', 'cancel'):
         upload_history = get_upload_history(conn)
 
-    if 'reference_id' in args:
+    if 'reference_id' in args and args.reference_id:
         # Attempt to recover from user entering accession rather than reference id
         args.reference_id = re.sub('\W', '_', args.reference_id)
 
@@ -398,7 +398,7 @@ def _prepare_inputs(workflow: Workflow, history_label: str, data: List[HistoryDa
     if newick:
         elements.append(CollectionElement(
             name='newick',
-            elements=[SimpleElement({'id': newick, 'src': newick.SRC, 'name': newick.name})]
+            elements=[SimpleElement({'id': newick.id, 'src': newick.SRC, 'name': newick.name})]
         ))
     input_collection = history.create_dataset_collection(CollectionDescription('input_data', type='list:list', elements=elements))
     inputs = {
