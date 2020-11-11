@@ -7,6 +7,7 @@ if sys.version_info[0] < 3:  # or (sys.version_info[0] == 3 and sys.version_info
 import traceback
 import argparse
 import json
+import os
 import time
 import re
 from pathlib import Path
@@ -288,8 +289,8 @@ If you are providing your own phylogenetic tree it must be in Newick format.
 The Newick dataset can contain identifiers that either refer to the dataset accession or the dataset label.
 Keep in mind that dataset labels default to the file name if not provided at upload.
 ''', epilog='See https://islandcompare.ca/ for a GUI', formatter_class=argparse.RawTextHelpFormatter)
-main.cmd.add_argument('--host', type=str, default='https://galaxy.islandcompare.ca/', help='Galaxy instance url')
-main.cmd.add_argument('--key', type=str, required=True, help='API key. Key for the default host is provided the the instructions on the Analysis page at https://islandcompare.ca/analysis')
+main.cmd.add_argument('--host', type=str, default=os.environ.get('GALAXY_HOST', 'https://galaxy.islandcompare.ca/'), help='Galaxy instance url (GALAXY_HOST environment variable)')
+main.cmd.add_argument('--key', type=str, help='API key (GALAXY_API_KEY environment variable). Key for the default host is provided in the instructions on the Analysis page at https://islandcompare.ca/analysis', **({"default": os.environ.get('GALAXY_API_KEY')} if 'GALAXY_API_KEY' in os.environ else {"required": True}))
 main.cmd.add_argument('--version', action='version', version=__version__)
 main.subcmds = main.cmd.add_subparsers(dest='command')
 
