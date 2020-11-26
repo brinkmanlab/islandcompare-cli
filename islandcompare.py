@@ -210,18 +210,14 @@ def main(args: argparse.Namespace):
         print(hda.id)
 
     elif args.command == 'list':
-        if sys.stdout.isatty():
-            print("ID\tLabel", file=sys.stderr)
+        print("ID\tLabel", file=sys.stderr)
         sys.stderr.flush()
         uploads = list_data(upload_history)
-        if sys.stdout.isatty():
-            if len(uploads):
-                for data in uploads:
-                    print(f"{data.id}\t{data.name}")
-            else:
-                print("No datasets found", file=sys.stderr)
+        if len(uploads):
+            for data in uploads:
+                print(f"{data.id}\t{data.name}")
         else:
-            print(" ".join(upload.id for upload in uploads))
+            print("No datasets found", file=sys.stderr)
 
     elif args.command == 'delete':
         delete_data(upload_history, args.id)
