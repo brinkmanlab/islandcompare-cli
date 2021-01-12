@@ -384,7 +384,7 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
     :param workflow: Workflow instance
     :param invocation_id: ID of workflow invocation
     :param path: Path to output folder
-    :return: List of paths of results
+    :return: Dict of paths of results keyed on label
     """
     if not path.is_dir():
         results.cmd.error("Output path must be existing folder")
@@ -401,11 +401,11 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
                                break_on_error=True)
 
     print("Downloading..", file=sys.stderr)
-    ret = []
+    ret = {}
     for label, output in invocation['outputs'].items():
         dataset = history.get_dataset(output['id'])
         file_path = (path / label).with_suffix('.' + dataset.file_ext).resolve()
-        ret.append(file_path)
+        ret[label] = file_path
         workflow.gi.gi.datasets.download_dataset(output['id'], file_path, False)
         print(file_path)
 
@@ -456,7 +456,7 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
     :param newick: Path to newick file
     :param accession: True, identifiers present in the uploaded newick are the accession. False, dataset label.
     :param reference_id: ID of reference genome to align drafts to
-    :return: List of paths of results
+    :return: Dict of paths of results keyed on label
     """
     start = time.time()
     for path in paths:
