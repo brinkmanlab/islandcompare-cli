@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import sys
-if sys.version_info[0] < 3:  # or (sys.version_info[0] == 3 and sys.version_info[1] < 8):
-    raise Exception("Must be using Python 3")  # .8 or later")
+if sys.version_info[0] < 3:
+    raise Exception("Must be using Python 3")
 
 import traceback
 import argparse
