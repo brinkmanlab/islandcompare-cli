@@ -46,6 +46,7 @@ ext_to_datatype = {
     "genbank": "genbank", "gbk": "genbank", "embl": "embl", "gbff": "genbank", "newick": "newick", "nwk": "newick"
 }
 
+
 class ArgumentParser(argparse.ArgumentParser):
     """
     Override default error message
@@ -383,7 +384,7 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
     :param workflow: Workflow instance
     :param invocation_id: ID of workflow invocation
     :param path: Path to output folder
-    :return: None
+    :return: List of paths of results
     """
     if not path.is_dir():
         results.cmd.error("Output path must be existing folder")
@@ -400,11 +401,15 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
                                break_on_error=True)
 
     print("Downloading..", file=sys.stderr)
+    ret = []
     for label, output in invocation['outputs'].items():
         dataset = history.get_dataset(output['id'])
         file_path = (path / label).with_suffix('.' + dataset.file_ext).resolve()
+        ret.append(file_path)
         workflow.gi.gi.datasets.download_dataset(output['id'], file_path, False)
         print(file_path)
+
+    return ret
 
 
 results.cmd_help = 'Download analysis results'
@@ -451,7 +456,7 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
     :param newick: Path to newick file
     :param accession: True, identifiers present in the uploaded newick are the accession. False, dataset label.
     :param reference_id: ID of reference genome to align drafts to
-    :return:
+    :return: List of paths of results
     """
     start = time.time()
     for path in paths:
@@ -473,7 +478,7 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
     invocation_id, history = invoke(workflow, label, uploads, newick, accession, reference_id)
     print("Analysis ID:", file=sys.stderr)
     print(invocation_id)
-    results(workflow, invocation_id, output_path)
+    ret = results(workflow, invocation_id, output_path)
 
     print(f"Wall time: {(time.time() - start)/60} minutes", file=sys.stderr)
     print("Cleaning up..", file=sys.stderr)
@@ -483,6 +488,8 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
 
     if newick:
         newick.delete(purge=True)
+
+    return ret
 
 
 round_trip.cmd_help = 'Upload, run analysis, and download results'
