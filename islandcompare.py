@@ -23,13 +23,15 @@ except ImportError as e:
 
 try:
     import bioblend
+    if bioblend.get_version() != '0.13.0':
+        raise ImportError("IslandCompare-CLI requires BioBlend v0.13.0")
     from bioblend.galaxy.objects import GalaxyInstance
     from bioblend.galaxy.objects.wrappers import History, HistoryDatasetAssociation, Workflow, Step
     from bioblend.galaxy.dataset_collections import CollectionDescription, CollectionElement, SimpleElement
     from bioblend.galaxy.workflows import WorkflowClient
 except ImportError as e:
     print(e, file=sys.stderr)
-    print("\n\033[1m\033[91mBioBlend dependency not found.\033[0m Try 'pip install bioblend'.", file=sys.stderr)
+    print("\n\033[1m\033[91mBioBlend dependency not found.\033[0m Try 'pip install bioblend==0.13.0'.", file=sys.stderr)
     exit(1)
 
 __version__ = '0.1.0'
