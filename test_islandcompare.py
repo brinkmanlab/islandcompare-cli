@@ -173,6 +173,10 @@ class TestInvocation(TestWithInvocation):
         cli.results(self.workflow, self.invocation_id, self.output_path)
         outputs = {path.name for path in self.output_path.glob('*')}
         self.assertTrue(self.expected_outputs.issubset(outputs))
+        errors = cli.errors(self.workflow, self.invocation_id)
+        for e in errors.values():
+            print(e)
+        self.assertEquals(len(errors), 0)
 
     def test_cancel(self):
         cli.cancel(self.workflow, self.invocation_id)

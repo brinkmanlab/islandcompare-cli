@@ -262,6 +262,11 @@ def main(args: argparse.Namespace):
         workflow = get_workflow(conn)
         cancel(workflow, args.id)
 
+    elif args.command == 'errors':
+        workflow = get_workflow(conn)
+        for e in errors(workflow, args.id).values():
+            print(e)
+
     elif args.command == 'upload_run':
         workflow = get_workflow(conn)
         # Deal with bug in argparse 'extend' by switching to append and flattening
@@ -530,6 +535,46 @@ cancel.cmd = main.subcmds.add_parser('cancel', help=cancel.cmd_help, description
 cancel.cmd.add_argument('id', metavar='ID', type=str, help='Analysis ID')
 
 
+# Get errors
+def errors(workflow: Workflow, invocation_id: str):
+    """
+    Get any errors that may have occurred during the workflow
+    :param workflow: Workflow instance
+    :param invocation_id: ID of workflow invocation
+    :return: Dict of strings containing error messages keyed on dataset ID
+    """
+    invocation = workflow.gi.gi.workflows.show_invocation(workflow.id, invocation_id)
+    history = workflow.gi.histories.get(invocation['history_id'])
+
+    err = {}
+
+    for step in invocation['steps']:
+        step = workflow.gi.gi.workflows.show_invocation_step(workflow.id, invocation_id, step['id'])
+        label = step['workflow_step_label']
+        for job in step['jobs']:
+            if job['state'] == 'error':
+                job = workflow.gi.jobs.get(job['id'], True).wrapped
+                # Resolve input identifier
+                input_identifier = map(lambda x: job['params'][f"{x}|__identifier__"], filter(lambda x: f"{x}|__identifier__" in job['params'], job['inputs'].keys()))
+                if len(input_identifier) == 1: input_identifier = input_identifier[0]
+                elif len(input_identifier) > 1: input_identifier = f"[${input_identifier.join(', ')}]"
+                else: input_identifier = ''
+
+                for key, val in job['outputs'].items():
+                    if val.src == 'hda':
+                        hda = history.get_dataset(val.id)
+                        if hda.state == 'error':
+                            err_str = f"{label} on {input_identifier} - {key}: {hda.misc_info}\n"
+                            err_str += workflow.gi.gi.datasets.show_stderr(val.id) + '\n'
+                            err[val.id] = err_str
+                    # TODO hdca
+
+
+errors.cmd_help = 'Get any errors during analysis'
+errors.cmd = main.subcmds.add_parser('errors', help=errors.cmd_help, description=errors.cmd_help)
+errors.cmd.add_argument('id', metavar='ID', type=str, help='Analysis ID')
+
+
 # Upload and run
 def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, label: str, output_path: Path, newick: Path or None = None, accession: bool = True, reference_id: str = ''):
     """
@@ -565,6 +610,8 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
     print("Analysis ID:", file=sys.stderr)
     print(invocation_id)
     ret = results(workflow, invocation_id, output_path)
+    for e in errors(workflow, invocation_id).values():
+        print(e)
 
     print(f"Wall time: {(time.time() - start)/60} minutes", file=sys.stderr)
     print("Cleaning up..", file=sys.stderr)
