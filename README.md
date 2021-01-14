@@ -91,6 +91,7 @@ positional arguments:
     runs                List submitted analysis
     download            Download analysis results
     cancel              Cancel or delete analysis
+    errors              Get any errors during analysis
     upload_run          Upload, run analysis, and download results
 
 optional arguments:
@@ -175,6 +176,18 @@ usage: islandcompare.py cancel [-h] ID
 Cancel or delete analysis
 positional arguments:
   ID          Analysis ID
+optional arguments:
+  -h, --help  show this help message and exit
+```
+
+```
+usage: islandcompare.py errors [-h] ID
+
+Get any errors during analysis
+
+positional arguments:
+  ID          Analysis ID
+
 optional arguments:
   -h, --help  show this help message and exit
 ```
