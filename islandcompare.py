@@ -15,23 +15,16 @@ from collections import namedtuple
 from typing import List, Dict
 
 try:
-    import six
-except ImportError as e:
-    print(e, file=sys.stderr)
-    print("\n\033[1m\033[91mSix dependency not found.\033[0m Try 'pip install six'.", file=sys.stderr)
-    exit(1)
-
-try:
     import bioblend
-    if bioblend.get_version() != '0.13.0':
-        raise ImportError("IslandCompare-CLI requires BioBlend v0.13.0")
+    if bioblend.get_version() != '0.14.0':
+        raise ImportError("IslandCompare-CLI requires BioBlend v0.14.0")
     from bioblend.galaxy.objects import GalaxyInstance
     from bioblend.galaxy.objects.wrappers import History, HistoryDatasetAssociation, Workflow, Step
     from bioblend.galaxy.dataset_collections import CollectionDescription, CollectionElement, SimpleElement
     from bioblend.galaxy.workflows import WorkflowClient
 except ImportError as e:
     print(e, file=sys.stderr)
-    print("\n\033[1m\033[91mBioBlend dependency not found.\033[0m Try 'pip install bioblend==0.13.0'.", file=sys.stderr)
+    print("\n\033[1m\033[91mBioBlend dependency not found.\033[0m Try 'pip install bioblend==0.14.0'.", file=sys.stderr)
     exit(1)
 
 __version__ = '0.1.0'
@@ -49,87 +42,7 @@ ext_to_datatype = {
 }
 
 # ======== Patched bioblend functions ===========
-
-
-def step__init__(self, step_dict, parent):
-    super(Step, self).__init__(step_dict, parent=parent, gi=parent.gi)
-    try:
-        stype = step_dict['type']
-    except KeyError:
-        raise ValueError('not a step dict')
-    if stype not in {'data_collection_input', 'data_input', 'parameter_input', 'pause', 'tool', 'subworkflow'}:
-        raise ValueError('Unknown step type: %r' % stype)
-    if self.type == 'tool' and self.tool_inputs:
-        for k, v in six.iteritems(self.tool_inputs):
-            # In Galaxy before release_17.05, v is a JSON-encoded string
-            if not isinstance(v, six.string_types):
-                break
-            try:
-                self.tool_inputs[k] = json.loads(v)
-            except ValueError:
-                break
-
-
-@property
-def parameter_input_ids(self):
-    """
-    Return the ids of parameter input steps for this workflow.
-    """
-    return set(id_ for id_, s in six.iteritems(self.steps)
-               if s.type == 'parameter_input')
-
-
-def Workflow__init__(self, wf_dict, gi=None):
-    super(Workflow, self).__init__(wf_dict, gi=gi)
-    missing_ids = []
-    if gi:
-        tools_list_by_id = [t.id for t in gi.tools.get_previews()]
-    else:
-        tools_list_by_id = []
-    tool_labels_to_ids = {}
-    for k, v in six.iteritems(self.steps):
-        # convert step ids to str for consistency with outer keys
-        v['id'] = str(v['id'])
-        for i in six.itervalues(v['input_steps']):
-            i['source_step'] = str(i['source_step'])
-        step = Step(v, self)
-        self.steps[k] = step
-        if step.type == 'tool':
-            if not step.tool_inputs or step.tool_id not in tools_list_by_id:
-                missing_ids.append(k)
-            tool_labels_to_ids.setdefault(step.tool_id, set()).add(step.id)
-    input_labels_to_ids = {}
-    for id_, d in six.iteritems(self.inputs):
-        input_labels_to_ids.setdefault(d['label'], set()).add(id_)
-    object.__setattr__(self, 'input_labels_to_ids', input_labels_to_ids)
-    object.__setattr__(self, 'tool_labels_to_ids', tool_labels_to_ids)
-    dag, inv_dag = self._get_dag()
-    heads, tails = set(dag), set(inv_dag)
-    object.__setattr__(self, 'dag', dag)
-    object.__setattr__(self, 'inv_dag', inv_dag)
-    object.__setattr__(self, 'source_ids', heads - tails)
-    assert set(self.inputs) == self.data_collection_input_ids | self.data_input_ids | self.parameter_input_ids, \
-        "inputs is %r, while data_collection_input_ids is %r and data_input_ids is %r" % (self.inputs, self.data_collection_input_ids, self.data_input_ids)
-    object.__setattr__(self, 'sink_ids', tails - heads)
-    object.__setattr__(self, 'missing_ids', missing_ids)
-
-
-def get_invocations(self, workflow_id, history_id=None, user_id=None, include_terminal=True, limit=None, view='collection', step_details=False):
-    url = self._invocations_url(workflow_id)
-    params = {'include_terminal': include_terminal, 'view': view, 'step_details': step_details}
-    if history_id: params['history_id'] = history_id
-    if user_id: params['user_id'] = user_id
-    if limit: params['limit'] = limit
-    return self._get(url=url, params=params)
-
-if bioblend.get_version() == '0.13.0':
-    # Monkeypatch until https://github.com/galaxyproject/bioblend/issues/316
-    Step.__init__ = step__init__
-    Workflow.BASE_ATTRS += ('owner', 'number_of_steps', 'show_in_tool_panel', 'latest_workflow_uuid')
-    Workflow.__init__ = Workflow__init__
-    Workflow.parameter_input_ids = parameter_input_ids
-    WorkflowClient.get_invocations = get_invocations
-
+Workflow.BASE_ATTRS += ('owner', 'number_of_steps', 'show_in_tool_panel', 'latest_workflow_uuid')
 # =========================================================
 
 
