@@ -278,7 +278,7 @@ def delete_data(history: History, id: str) -> None:
     """
     if not id:
         history.delete()
-    history.gi.gi.histories.delete_dataset(history.id, id)
+    history.gi.gi.histories.delete_dataset(history.id, id, True)
 
 
 delete_data.cmd_help = 'Delete uploaded datasets'
