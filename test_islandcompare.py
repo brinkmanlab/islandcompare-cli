@@ -31,7 +31,7 @@ class TestResources(TestBase):
         workflow = cli.get_workflow(self.conn)
         self.assertIsInstance(workflow, Workflow, "Workflow object not returned")
         self.assertIsNotNone(workflow.gi, "Workflow object returned does not have attached connection")
-        self.assertEqual(workflow.name, cli.workflow_name, "Unexpected workflow name")
+        self.assertIn(cli.workflow_tag, workflow.tags)
 
     def test_get_upload_history(self):
         history = cli.get_upload_history(self.conn)
@@ -103,6 +103,7 @@ class TestUploaded(TestWithDatasets):
     def test_delete_data(self):
         data = cli.list_data(self.upload_history)
         cli.delete_data(self.upload_history, data[0].id)
+        self.upload_history.refresh()
         new_data = cli.list_data(self.upload_history)
         self.assertEqual(len(data)-1, len(new_data))
         self.assertEqual(data[1].id, new_data[0].id)
