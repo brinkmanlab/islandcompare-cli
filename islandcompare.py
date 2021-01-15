@@ -512,7 +512,7 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
     :param newick: Path to newick file
     :param accession: True, identifiers present in the uploaded newick are the accession. False, dataset label.
     :param reference_id: ID of reference genome to align drafts to
-    :return: Dict of paths of results keyed on label
+    :return: (Dict of paths of results keyed on label, Dict of strings containing error messages keyed on dataset ID)
     """
     start = time.time()
     for path in paths:
@@ -535,7 +535,8 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
     print("Analysis ID:", file=sys.stderr)
     print(invocation_id)
     ret = results(workflow, invocation_id, output_path)
-    for e in errors(workflow, invocation_id).values():
+    err = errors(workflow, invocation_id)
+    for e in err.values():
         print(e)
 
     print(f"Wall time: {(time.time() - start)/60} minutes", file=sys.stderr)
@@ -547,7 +548,7 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
     if newick:
         newick.delete(purge=True)
 
-    return ret
+    return ret, err
 
 
 round_trip.cmd_help = 'Upload, run analysis, and download results'
