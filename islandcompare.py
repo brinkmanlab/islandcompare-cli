@@ -41,7 +41,18 @@ ext_to_datatype = {
     "genbank": "genbank", "gbk": "genbank", "embl": "embl", "gbff": "genbank", "newick": "newick", "nwk": "newick"
 }
 
+
 # ======== Patched bioblend functions ===========
+def get_invocations(self, workflow_id, history_id=None, user_id=None, include_terminal=True, limit=None, view='collection', step_details=False):
+    url = self._invocations_url(workflow_id)
+    params = {'include_terminal': include_terminal, 'view': view, 'step_details': step_details}
+    if history_id: params['history_id'] = history_id
+    if user_id: params['user_id'] = user_id
+    if limit: params['limit'] = limit
+    return self._get(url=url, params=params)
+
+
+WorkflowClient.get_invocations = get_invocations
 Workflow.BASE_ATTRS += ('owner', 'number_of_steps', 'show_in_tool_panel', 'latest_workflow_uuid')
 # =========================================================
 
@@ -481,6 +492,7 @@ def errors(workflow: Workflow, invocation_id: str):
                             err_str += workflow.gi.gi.datasets.show_stderr(val.id) + '\n'
                             err[val.id] = err_str
                     # TODO hdca
+    return err
 
 
 errors.cmd_help = 'Get any errors during analysis'
