@@ -14,6 +14,7 @@ https://islandcompare.ca/analysis
 For one off analysis use the `./islandcompare.py upload_run` command. For repeated analysis
 please use the `./islandcompare.py upload`, `./islandcompare.py run`, and `./islandcompare.py download` commands.
 
+This utility requires Python 3 and BioBlend 0.14 to be installed.
 
 Tutorial
 --------
