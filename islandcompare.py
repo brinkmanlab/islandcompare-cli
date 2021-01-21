@@ -20,7 +20,7 @@ try:
         raise ImportError("IslandCompare-CLI requires BioBlend v0.14.0")
     from bioblend.galaxy.objects import GalaxyInstance
     from bioblend.galaxy.objects.wrappers import History, HistoryDatasetAssociation, Workflow, Step
-    from bioblend.galaxy.dataset_collections import CollectionDescription, CollectionElement, SimpleElement
+    from bioblend.galaxy.dataset_collections import CollectionDescription, CollectionElement, HistoryDatasetCollectionElement, HistoryDatasetElement
     from bioblend.galaxy.workflows import WorkflowClient
 except ImportError as e:
     print(e, file=sys.stderr)
@@ -321,20 +321,12 @@ def _prepare_inputs(workflow: Workflow, history_label: str, data: List[HistoryDa
     history.tags.append(application_tag)
     history.update(tags=history.tags)
 
-    elements = [
-        CollectionElement(
-            name='data',
-            elements=[SimpleElement({'id': datum.id, 'src': datum.SRC, 'name': datum.name}) for datum in data]
-        )
-    ]
-    if newick:
-        elements.append(CollectionElement(
-            name='newick',
-            elements=[SimpleElement({'id': newick.id, 'src': newick.SRC, 'name': newick.name})]
-        ))
-    input_collection = history.create_dataset_collection(CollectionDescription('input_data', type='list:list', elements=elements))
+    elements = [HistoryDatasetElement(id=datum.id, name=datum.name) for datum in data]
+
+    input_collection = history.create_dataset_collection(CollectionDescription('input_data', type='list', elements=elements))
     inputs = {
-        inputs['list:list of data and optional inputs']: {'id': input_collection.id, 'src': input_collection.SRC},
+        inputs['Input datasets']: {'id': input_collection.id, 'src': input_collection.SRC},
+        inputs['Phylogenetic tree in newick format']: {'id': newick.id, 'src': newick.SRC} if newick else None,
         inputs['Newick Identifiers']: 'False' if accession else 'True',
         inputs['Reference Genome']: reference_id or ''
     }
