@@ -22,6 +22,8 @@ try:
     from bioblend.galaxy.objects.wrappers import History, HistoryDatasetAssociation, Workflow, Step
     from bioblend.galaxy.dataset_collections import CollectionDescription, CollectionElement, HistoryDatasetCollectionElement, HistoryDatasetElement
     from bioblend.galaxy.workflows import WorkflowClient
+    from bioblend.galaxy.histories import HistoryClient
+    from bioblend.galaxy.datasets import DatasetClient
 except ImportError as e:
     print(e, file=sys.stderr)
     print("\n\033[1m\033[91mBioBlend dependency not found.\033[0m Try 'pip install bioblend==0.14.0'.", file=sys.stderr)
@@ -40,6 +42,10 @@ application_tag = 'IslandCompare'
 ext_to_datatype = {
     "genbank": "genbank", "gbk": "genbank", "embl": "embl", "gbff": "genbank", "newick": "newick", "nwk": "newick"
 }
+
+WorkflowClient.set_max_get_retries(5)
+HistoryClient.set_max_get_retries(5)
+DatasetClient.set_max_get_retries(5)
 
 
 # ======== Patched bioblend functions ===========
