@@ -123,6 +123,14 @@ def _flatten(l):
     return data
 
 
+def _retryConnection(f, *args, **kwargs):
+    for _ in range(5):
+        try:
+            return f(*args, **kwargs)
+        except ConnectionError:
+            time.sleep(1)
+            pass
+
 def main(args: argparse.Namespace):
     """
     Script entrance function
@@ -397,7 +405,7 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
     :param workflow: Workflow instance
     :param invocation_id: ID of workflow invocation
     :param path: Path to output folder
-    :return: Dict of paths of results keyed on label
+    :return: Dict of paths of results keyed on label or None if error
     """
     if not path.is_dir():
         results.cmd.error("Output path must be existing folder")
@@ -408,10 +416,21 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
     print("Waiting for results..", file=sys.stderr)
     while 'Results' not in invocation['outputs']:
         time.sleep(workflow.POLLING_INTERVAL)
+        history.refresh()
+        still_running = True
+        if history.state_details['error'] > 0:
+            still_running = False
+            for state in ('new', 'upload', 'queued', 'running', 'setting_metadata'):
+                if history.state_details[state] > 0:
+                    still_running = True
+                    break
+
+        if not still_running:
+            print("Blocking error detected", file=sys.stderr)
+            return None
         invocation = workflow.gi.gi.workflows.show_invocation(workflow.id, invocation_id)
 
-    workflow.gi._wait_datasets([history.get_dataset(output['id']) for _, output in invocation['outputs'].items()], polling_interval=Workflow.POLLING_INTERVAL,
-                               break_on_error=True)
+    workflow.gi._wait_datasets([history.get_dataset(output['id']) for _, output in invocation['outputs'].items()], polling_interval=Workflow.POLLING_INTERVAL, break_on_error=True)
 
     print("Downloading..", file=sys.stderr)
     ret = {}
@@ -419,7 +438,7 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
         dataset = history.get_dataset(output['id'])
         file_path = (path / label).with_suffix('.' + dataset.file_ext).resolve()
         ret[label] = file_path
-        workflow.gi.gi.datasets.download_dataset(output['id'], file_path, False)
+        _retryConnection(workflow.gi.gi.datasets.download_dataset, output['id'], file_path, False)
         print(file_path)
 
     return ret
@@ -533,6 +552,7 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
     print("Analysis ID:", file=sys.stderr)
     print(invocation_id)
     ret = results(workflow, invocation_id, output_path)
+    print("Checking for errors..", file=sys.stderr)
     err = errors(workflow, invocation_id)
     for e in err.values():
         print(e)
