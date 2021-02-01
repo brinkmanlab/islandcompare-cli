@@ -149,9 +149,13 @@ class TestInvoke(TestWithWorkflow):
     # TODO test_invoke_newick file name
 
     def test_round_trip(self):
-        cli.round_trip(self.upload_history, self.data, self.workflow, 'test', self.output_path)
+        ret, err = cli.round_trip(self.upload_history, self.data, self.workflow, 'test', self.output_path)
+        for e in err:
+            print(e)
         outputs = {path.name for path in self.output_path.glob('*')}
         self.assertTrue(self.expected_outputs.issubset(outputs))
+        self.assertIsNotNone(ret)
+        self.assertEqual(len(err), 0)
 
     def test_round_trip_cmd(self):
         cli.main(cli.main.cmd.parse_args([*self.cmd_args, 'upload_run', 'test', *[str(datum) for datum in self.data], str(self.output_path)]))
@@ -171,13 +175,15 @@ class TestInvocation(TestWithInvocation):
         self.assertIn(self.invocation_id, [invocation['id'] for invocation in invocations])
 
     def test_results(self):
-        cli.results(self.workflow, self.invocation_id, self.output_path)
+        ret = cli.results(self.workflow, self.invocation_id, self.output_path)
         outputs = {path.name for path in self.output_path.glob('*')}
-        self.assertTrue(self.expected_outputs.issubset(outputs))
         errors = cli.errors(self.workflow, self.invocation_id)
         for e in errors.values():
             print(e)
-        self.assertEquals(len(errors), 0)
+        self.assertEqual(len(errors), 0)
+        self.assertIsNotNone(ret)
+        self.assertTrue(self.expected_outputs.issubset(outputs))
+        # TODO compare ret and outputs
 
     def test_cancel(self):
         cli.cancel(self.workflow, self.invocation_id)
