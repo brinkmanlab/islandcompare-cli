@@ -107,9 +107,9 @@ def get_upload_history(conn) -> History:
         if upload_history_tag in history['tags']:
             return conn.histories.get(history['id'])
     else:
-        history = conn.histories.create(name=upload_history_name)
+        history = _retryConnection(conn.histories.create, name=upload_history_name)
         history.tags.append(upload_history_tag)
-        history.update(tags=history.tags)
+        _retryConnection(history.update, tags=history.tags)
         return history
 
 
@@ -255,9 +255,9 @@ def upload(history: History, path: Path, label: str = '', type: str = None) -> H
         type = ext_to_datatype[path.suffix.lstrip('.')]
 
     if type:
-        return history.upload_file(str(path.resolve()), file_name=label, file_type=type)
+        return _retryConnection(history.upload_file, str(path.resolve()), file_name=label, file_type=type)
     else:
-        return history.upload_file(str(path.resolve()), file_name=label)
+        return _retryConnection(history.upload_file, str(path.resolve()), file_name=label)
 
 
 upload.cmd_help = 'Upload datasets'
@@ -292,7 +292,7 @@ def delete_data(history: History, id: str) -> None:
     """
     if not id:
         history.delete()
-    history.gi.gi.histories.delete_dataset(history.id, id, True)
+    _retryConnection(history.gi.gi.histories.delete_dataset, history.id, id, True)
 
 
 delete_data.cmd_help = 'Delete uploaded datasets'
@@ -329,15 +329,15 @@ def _prepare_inputs(workflow: Workflow, history_label: str, data: List[HistoryDa
     :return: Tuple of dict to send as inputs and output History instance
     """
     inputs = {label: input.pop() for label, input in workflow.input_labels_to_ids.items()}
-    history = workflow.gi.histories.create(history_label)
+    history = _retryConnection(workflow.gi.histories.create, history_label)
 
     history.tags.append(workflow.id)
     history.tags.append(application_tag)
-    history.update(tags=history.tags)
+    _retryConnection(history.update, tags=history.tags)
 
     elements = [HistoryDatasetElement(id=datum.id, name=datum.name) for datum in data]
 
-    input_collection = history.create_dataset_collection(CollectionDescription('input_data', type='list', elements=elements))
+    input_collection = _retryConnection(history.create_dataset_collection, CollectionDescription('input_data', type='list', elements=elements))
     inputs = {
         inputs['Input datasets']: {'id': input_collection.id, 'src': input_collection.SRC},
         inputs['Phylogenetic tree in newick format']: {'id': newick.id, 'src': newick.SRC} if newick else None,
@@ -360,7 +360,7 @@ def invoke(workflow: Workflow, label: str, data: List[HistoryDatasetAssociation]
     :return: Invocation ID
     """
     inputs, history = _prepare_inputs(workflow, label, data, newick, accession, reference_id)
-    invocation = workflow.gi.gi.workflows.invoke_workflow(workflow.id, inputs, history_id=history.id, allow_tool_state_corrections=True)
+    invocation = _retryConnection(workflow.gi.gi.workflows.invoke_workflow, workflow.id, inputs, history_id=history.id, allow_tool_state_corrections=True)
 
     return invocation['id'], history
 
@@ -438,7 +438,7 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
                         break
                 else:
                     break
-    except e:
+    except Exception as e:
         print(e, file=sys.stderr)
         return None
 
@@ -474,7 +474,7 @@ def cancel(workflow: Workflow, invocation_id: str):
     # Cancel still running invocations
     invocation = workflow.gi.gi.workflows.show_invocation(workflow.id, invocation_id)
     try:
-        workflow.gi.gi.workflows.cancel_invocation(workflow.id, invocation_id)
+        _retryConnection(workflow.gi.gi.workflows.cancel_invocation, workflow.id, invocation_id)
     except bioblend.ConnectionError as e:
         if json.loads(e.body)['err_msg'] != 'Cannot cancel an inactive workflow invocation.':
             raise e
