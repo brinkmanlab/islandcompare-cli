@@ -24,6 +24,7 @@ try:
     from bioblend.galaxy.workflows import WorkflowClient
     from bioblend.galaxy.histories import HistoryClient
     from bioblend.galaxy.datasets import DatasetClient
+    from bioblend.galaxy.jobs import JobsClient
 except ImportError as e:
     print(e, file=sys.stderr)
     print("\n\033[1m\033[91mBioBlend dependency not found.\033[0m Try 'pip install bioblend==0.14.0'.", file=sys.stderr)
@@ -46,6 +47,7 @@ ext_to_datatype = {
 WorkflowClient.set_max_get_retries(5)
 HistoryClient.set_max_get_retries(5)
 DatasetClient.set_max_get_retries(5)
+JobsClient.set_max_get_retries(5)
 
 
 # ======== Patched bioblend functions ===========
@@ -569,15 +571,17 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
     err = errors(workflow, invocation_id)
     for e in err.values():
         print(e)
+    if len(err) == 0:
+        print('No errors found', file=sys.stderr)
 
     print(f"Wall time: {(time.time() - start)/60} minutes", file=sys.stderr)
     print("Cleaning up..", file=sys.stderr)
-    history.delete(purge=True)
+    _retryConnection(history.delete, purge=True)
     for hda in uploads:
-        hda.delete(purge=True)
+        _retryConnection(hda.delete, purge=True)
 
     if newick:
-        newick.delete(purge=True)
+        _retryConnection(newick.delete, purge=True)
 
     return ret, err
 
