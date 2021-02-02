@@ -414,23 +414,36 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
     history = workflow.gi.histories.get(invocation['history_id'])
 
     print("Waiting for results..", file=sys.stderr)
-    while 'Results' not in invocation['outputs']:
-        time.sleep(workflow.POLLING_INTERVAL)
-        history.refresh()
-        still_running = True
-        if history.state_details['error'] > 0:
-            still_running = False
-            for state in ('new', 'upload', 'queued', 'running', 'setting_metadata'):
-                if history.state_details[state] > 0:
-                    still_running = True
+    try:
+        while True:
+            time.sleep(workflow.POLLING_INTERVAL)
+            history.refresh()
+
+            # Check for blocking errors
+            if history.state_details['error'] > 0:
+                for state in ('new', 'upload', 'queued', 'running', 'setting_metadata'):
+                    if history.state_details[state] > 0:
+                        break
+                else:
+                    raise Exception("Blocking error detected")
+
+            # Check for completion
+            if 'Results' not in invocation['outputs']:
+                invocation = workflow.gi.gi.workflows.show_invocation(workflow.id, invocation_id)
+            else:
+                for output in (history.get_dataset(output['id']) for _, output in invocation['outputs'].items()):
+                    if output.state in ('error', 'paused'):
+                        raise Exception("Blocking error detected")
+                    if output.state != 'ok':
+                        break
+                else:
                     break
+    except e:
+        print(e, file=sys.stderr)
+        return None
 
-        if not still_running:
-            print("Blocking error detected", file=sys.stderr)
-            return None
-        invocation = workflow.gi.gi.workflows.show_invocation(workflow.id, invocation_id)
 
-    workflow.gi._wait_datasets([history.get_dataset(output['id']) for _, output in invocation['outputs'].items()], polling_interval=Workflow.POLLING_INTERVAL, break_on_error=True)
+    # workflow.gi._wait_datasets([history.get_dataset(output['id']) for _, output in invocation['outputs'].items()], polling_interval=Workflow.POLLING_INTERVAL, break_on_error=True)
 
     print("Downloading..", file=sys.stderr)
     ret = {}
