@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
+import os
 import shutil
 import tempfile
+import unittest
 from pathlib import Path
 from unittest import TestCase
 
@@ -191,3 +193,7 @@ class TestInvocation(TestWithInvocation):
         history = self.conn.histories.get(invocation['history_id'])
         self.assertEqual(invocation['state'], 'cancelled')
         self.assertTrue(history.deleted)
+
+
+if __name__ == '__main__':
+    unittest.main(verbosity=2)
