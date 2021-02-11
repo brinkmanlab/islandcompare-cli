@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 from collections import namedtuple
 from typing import List, Dict
+from urllib.parse import urljoin
 
 try:
     import bioblend
@@ -78,6 +79,10 @@ class ArgumentParser(argparse.ArgumentParser):
         exit(2)
 
 
+class BlockingWorkflowError(Exception):
+    pass
+
+
 def get_workflow(conn: GalaxyInstance) -> Workflow:
     """
     Helper to get the configured Workflow object
@@ -116,6 +121,35 @@ def get_upload_history(conn) -> History:
         history.tags.append(upload_history_tag)
         _retryConnection(history.update, tags=history.tags)
         return history
+
+
+def get_invocation_state(history, invocation_id) -> str:
+    """
+    Helper to determine invocation overall state
+    :param history: History instance associated with invocation
+    :param invocation_id: Id of workflow invocation
+    :return: 'done', 'running' or 'error'
+    """
+
+    # Check for blocking errors
+    if history.state_details['error'] > 0 or history.state == 'error':
+        for state in ('new', 'upload', 'queued', 'running', 'setting_metadata'):
+            if history.state_details[state] > 0:
+                return 'running'
+
+    invocation = history.gi.gi.invocations.show_invocation(invocation_id)
+
+    # Check for completion
+    if 'Results' not in invocation['outputs']:
+        return 'error'
+    else:
+        for output in (history.get_dataset(output['id']) for _, output in invocation['outputs'].items()):
+            if output.state in ('error', 'paused'):
+                return 'error'
+            if output.state != 'ok':
+                'running'
+        else:
+            return 'done'
 
 
 def _flatten(l):
@@ -370,6 +404,7 @@ def invoke(workflow: Workflow, label: str, data: List[HistoryDatasetAssociation]
     :param reference_id: ID of reference genome to align drafts to
     :return: Invocation ID
     """
+    workflow.gi._wait_datasets(data, polling_interval=1, break_on_error=True)
     inputs, history = _prepare_inputs(workflow, label, data, newick, accession, reference_id)
     invocation = _retryConnection(workflow.gi.gi.workflows.invoke_workflow, workflow.id, inputs, history_id=history.id, allow_tool_state_corrections=True)
 
@@ -400,7 +435,7 @@ def invocations(workflow: Workflow) -> List[Dict[str, str]]:
     for history in workflow.gi.histories.list():
         if not history.deleted and (workflow.id in history.tags or application_tag in history.tags):
             for invocation in workflow.gi.gi.workflows.get_invocations(workflow.id, history_id=history.id):
-                result.append({'id': invocation['id'], 'state': invocation['state'], 'label': history.name})
+                result.append({'id': invocation['id'], 'state': get_invocation_state(history, invocation.id), 'label': history.name})
 
     return result
 
@@ -429,32 +464,17 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
         while True:
             time.sleep(workflow.POLLING_INTERVAL)
             history.refresh()
+            state = get_invocation_state(history, invocation_id)
 
-            # Check for blocking errors
-            if history.state_details['error'] > 0:
-                for state in ('new', 'upload', 'queued', 'running', 'setting_metadata'):
-                    if history.state_details[state] > 0:
-                        break
-                else:
-                    raise Exception("Blocking error detected")
+            if state == 'error':
+                raise BlockingWorkflowError("Blocking error detected")
 
-            # Check for completion
-            if 'Results' not in invocation['outputs']:
-                invocation = workflow.gi.gi.workflows.show_invocation(workflow.id, invocation_id)
-            else:
-                for output in (history.get_dataset(output['id']) for _, output in invocation['outputs'].items()):
-                    if output.state in ('error', 'paused'):
-                        raise Exception("Blocking error detected")
-                    if output.state != 'ok':
-                        break
-                else:
-                    break
-    except Exception as e:
+            if state == 'done':
+                break
+
+    except BlockingWorkflowError as e:
         print(e, file=sys.stderr)
         return None
-
-
-    # workflow.gi._wait_datasets([history.get_dataset(output['id']) for _, output in invocation['outputs'].items()], polling_interval=Workflow.POLLING_INTERVAL, break_on_error=True)
 
     print("Downloading..", file=sys.stderr)
     ret = {}
@@ -506,33 +526,38 @@ def errors(workflow: Workflow, invocation_id: str):
     Get any errors that may have occurred during the workflow
     :param workflow: Workflow instance
     :param invocation_id: ID of workflow invocation
-    :return: Dict of strings containing error messages keyed on dataset ID
+    :return: Dict of strings containing error messages keyed on job ID
     """
     invocation = workflow.gi.gi.workflows.show_invocation(workflow.id, invocation_id)
     history = workflow.gi.histories.get(invocation['history_id'])
 
     err = {}
-
-    for step in invocation['steps']:
-        step = workflow.gi.gi.workflows.show_invocation_step(workflow.id, invocation_id, step['id'])
+    steps = invocation['steps']
+    for step in steps:
+        if step['subworkflow_invocation_id']:
+            steps.extend(workflow.gi.gi.invocations.show_invocation(step['subworkflow_invocation_id'])['steps'])
+            continue
+        step = workflow.gi.gi.invocations.show_invocation_step(invocation_id, step['id'])
         label = step['workflow_step_label']
         for job in step['jobs']:
             if job['state'] == 'error':
                 job = workflow.gi.jobs.get(job['id'], True).wrapped
                 # Resolve input identifier
-                input_identifier = map(lambda x: job['params'][f"{x}|__identifier__"], filter(lambda x: f"{x}|__identifier__" in job['params'], job['inputs'].keys()))
+                input_identifier = list(map(lambda x: job['params'][f"{x}|__identifier__"], filter(lambda x: f"{x}|__identifier__" in job['params'], job['inputs'].keys())))
                 if len(input_identifier) == 1: input_identifier = input_identifier[0]
                 elif len(input_identifier) > 1: input_identifier = f"[${input_identifier.join(', ')}]"
                 else: input_identifier = ''
 
+                err_str = ''
                 for key, val in job['outputs'].items():
-                    if val.src == 'hda':
-                        hda = history.get_dataset(val.id)
+                    if val['src'] == 'hda':
+                        hda = history.get_dataset(val['id'])
                         if hda.state == 'error':
-                            err_str = f"{label} on {input_identifier} - {key}: {hda.misc_info}\n"
-                            err_str += workflow.gi.gi.datasets.show_stderr(val.id) + '\n'
-                            err[val.id] = err_str
+                            err_str += f"{label} on {input_identifier} - {key}: {hda.misc_info}\n"
                     # TODO hdca
+
+                err_str += job['stderr'] + '\n'
+                err[job['id']] = err_str
     return err
 
 
@@ -576,7 +601,7 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
     print("Analysis ID:", file=sys.stderr)
     print(invocation_id)
     ret = results(workflow, invocation_id, output_path)
-    print("Checking for errors..", file=sys.stderr)
+    print("Collecting any errors..", file=sys.stderr)
     err = errors(workflow, invocation_id)
     for e in err.values():
         print(e)
