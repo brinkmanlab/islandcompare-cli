@@ -489,6 +489,7 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
         r = workflow.gi.gi.make_get_request(urljoin(workflow.gi.gi.base_url, f'/api/histories/{history.id}/contents/dataset_collections/{output["id"]}/download'))
         r.raise_for_status()
         file_path = (path / label).with_suffix('.zip').resolve()
+        ret[label] = file_path
         with open(file_path, 'wb') as fp:
             for chunk in r.iter_content(chunk_size=bioblend.CHUNK_SIZE):
                 if chunk:
