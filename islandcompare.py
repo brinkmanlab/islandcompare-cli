@@ -4,6 +4,7 @@ import sys
 if sys.version_info[0] < 3:
     raise Exception("Must be using Python 3")
 
+import requests
 import traceback
 import argparse
 import json
@@ -131,7 +132,7 @@ def _retryConnection(f, *args, **kwargs):
     for _ in range(5):
         try:
             return f(*args, **kwargs)
-        except ConnectionError:
+        except (requests.exceptions.ConnectionError, bioblend.ConnectionError, ConnectionError):
             time.sleep(1)
             pass
 
