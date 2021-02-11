@@ -485,6 +485,16 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
         _retryConnection(workflow.gi.gi.datasets.download_dataset, output['id'], file_path, False)
         print(file_path)
 
+    for label, output in invocation['output_collections'].items():
+        r = workflow.gi.gi.make_get_request(urljoin(workflow.gi.gi.base_url, f'/api/histories/{history.id}/contents/dataset_collections/{output["id"]}/download'))
+        r.raise_for_status()
+        file_path = (path / label).with_suffix('.zip').resolve()
+        with open(file_path, 'wb') as fp:
+            for chunk in r.iter_content(chunk_size=bioblend.CHUNK_SIZE):
+                if chunk:
+                    fp.write(chunk)
+        print(file_path)
+
     return ret
 
 
