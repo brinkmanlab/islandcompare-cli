@@ -25,6 +25,7 @@ try:
     from bioblend.galaxy.histories import HistoryClient
     from bioblend.galaxy.datasets import DatasetClient
     from bioblend.galaxy.jobs import JobsClient
+    from bioblend.galaxy.invocations import InvocationClient
 except ImportError as e:
     print(e, file=sys.stderr)
     print("\n\033[1m\033[91mBioBlend dependency not found.\033[0m Try 'pip install bioblend==0.14.0'.", file=sys.stderr)
@@ -48,6 +49,7 @@ WorkflowClient.set_max_get_retries(5)
 HistoryClient.set_max_get_retries(5)
 DatasetClient.set_max_get_retries(5)
 JobsClient.set_max_get_retries(5)
+InvocationClient.set_max_get_retries(5)
 
 
 # ======== Patched bioblend functions ===========
@@ -132,6 +134,7 @@ def _retryConnection(f, *args, **kwargs):
         except ConnectionError:
             time.sleep(1)
             pass
+
 
 def main(args: argparse.Namespace):
     """
@@ -256,10 +259,15 @@ def upload(history: History, path: Path, label: str = '', type: str = None) -> H
     if not type and path.suffix and path.suffix.lstrip('.') in ext_to_datatype.keys():
         type = ext_to_datatype[path.suffix.lstrip('.')]
 
-    if type:
-        return _retryConnection(history.upload_file, str(path.resolve()), file_name=label, file_type=type)
-    else:
-        return _retryConnection(history.upload_file, str(path.resolve()), file_name=label)
+    for _ in range(5):
+        if type:
+            hda = _retryConnection(history.upload_file, str(path.resolve()), file_name=label, file_type=type)
+        else:
+            hda = _retryConnection(history.upload_file, str(path.resolve()), file_name=label)
+
+        return hda
+
+    raise RuntimeError('Failed to upload ' + label)
 
 
 upload.cmd_help = 'Upload datasets'
@@ -483,7 +491,7 @@ def cancel(workflow: Workflow, invocation_id: str):
 
     # Delete output history
     history = workflow.gi.histories.get(invocation['history_id'])
-    history.delete()
+    _retryConnection(history.delete)
 
 
 cancel.cmd_help = 'Cancel or delete analysis'
