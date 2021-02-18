@@ -184,8 +184,8 @@ class TestInvocation(TestWithInvocation):
             print(e)
         self.assertEqual(len(errors), 0)
         self.assertIsNotNone(ret)
-        self.assertTrue(self.expected_outputs.issubset(outputs))
-        # TODO compare ret and outputs
+        self.assertSetEqual(self.expected_outputs, outputs)
+        self.assertSetEqual(self.expected_outputs, set(ret.values()))
 
     def test_cancel(self):
         cli.cancel(self.workflow, self.invocation_id)
