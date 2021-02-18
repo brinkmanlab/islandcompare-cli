@@ -294,15 +294,12 @@ def upload(history: History, path: Path, label: str = '', type: str = None) -> H
     if not type and path.suffix and path.suffix.lstrip('.') in ext_to_datatype.keys():
         type = ext_to_datatype[path.suffix.lstrip('.')]
 
-    for _ in range(5):
-        if type:
-            hda = _retryConnection(history.upload_file, str(path.resolve()), file_name=label, file_type=type)
-        else:
-            hda = _retryConnection(history.upload_file, str(path.resolve()), file_name=label)
+    if type:
+        hda = _retryConnection(history.upload_file, str(path.resolve()), file_name=label, file_type=type)
+    else:
+        hda = _retryConnection(history.upload_file, str(path.resolve()), file_name=label)
 
-        return hda
-
-    raise RuntimeError('Failed to upload ' + label)
+    return hda
 
 
 upload.cmd_help = 'Upload datasets'
