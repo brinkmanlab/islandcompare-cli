@@ -166,9 +166,13 @@ def _retryConnection(f, *args, **kwargs):
     for _ in range(5):
         try:
             return f(*args, **kwargs)
-        except (requests.exceptions.ConnectionError, bioblend.ConnectionError, ConnectionError):
+        except (requests.exceptions.ConnectionError, bioblend.ConnectionError, ConnectionError) as e:
+            laste = e
+            print(e, file=sys.stderr)
+            print("Retrying..", sys.stderr)
             time.sleep(1)
             pass
+    raise laste
 
 
 def main(args: argparse.Namespace):
