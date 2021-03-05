@@ -131,17 +131,23 @@ def get_invocation_state(history, invocation_id) -> str:
     :return: 'done', 'running' or 'error'
     """
 
+    summary = history.gi.gi.invocations.get_invocation_summary(invocation_id)
+
+    if summary['populated_state'] in ('new',):
+        return 'running'
+
     # Check for blocking errors
-    if history.state_details['error'] > 0 or history.state == 'error':
-        for state in ('new', 'upload', 'queued', 'running', 'setting_metadata'):
-            if history.state_details[state] > 0:
-                return 'running'
+    for state in ('new', 'upload', 'queued', 'running', 'setting_metadata'):
+        if state in summary['states'] and summary['states'][state] > 0:
+            return 'running'
 
     invocation = history.gi.gi.invocations.show_invocation(invocation_id)
 
     # Check for completion
     if 'Results' not in invocation['outputs']:
-        return 'error'
+        if summary['states']['error'] > 0:
+            return 'error'
+        return 'running'
     else:
         for output in (history.get_dataset(output['id']) for _, output in invocation['outputs'].items()):
             if output.state in ('error', 'paused'):
@@ -464,11 +470,10 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
     try:
         while True:
             time.sleep(workflow.POLLING_INTERVAL)
-            history.refresh()
             state = get_invocation_state(history, invocation_id)
 
             if state == 'error':
-                raise BlockingWorkflowError("Blocking error detected")
+                raise BlockingWorkflowError(f"Blocking error detected: {history.state_details}")
 
             if state == 'done':
                 break
@@ -478,6 +483,7 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
         return None
 
     print("Downloading..", file=sys.stderr)
+    invocation = workflow.gi.gi.workflows.show_invocation(workflow.id, invocation_id)
     ret = {}
     for label, output in invocation['outputs'].items():
         dataset = history.get_dataset(output['id'])
