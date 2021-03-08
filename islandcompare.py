@@ -55,6 +55,7 @@ InvocationClient.set_max_get_retries(5)
 
 
 # ======== Patched bioblend functions ===========
+# TODO Remove after upgrading to v0.16.0
 def get_invocations(self, workflow_id, history_id=None, user_id=None, include_terminal=True, limit=None, view='collection', step_details=False):
     url = self._invocations_url(workflow_id)
     params = {'include_terminal': include_terminal, 'view': view, 'step_details': step_details}
