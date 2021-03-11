@@ -443,7 +443,7 @@ def invocations(workflow: Workflow) -> List[Dict[str, str]]:
     for history in workflow.gi.histories.list():
         if not history.deleted and (workflow.id in history.tags or application_tag in history.tags):
             for invocation in workflow.gi.gi.workflows.get_invocations(workflow.id, history_id=history.id):
-                result.append({'id': invocation['id'], 'state': get_invocation_state(history, invocation.id), 'label': history.name})
+                result.append({'id': invocation['id'], 'state': get_invocation_state(history, invocation['id']), 'label': history.name})
 
     return result
 
