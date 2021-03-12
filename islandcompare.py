@@ -146,7 +146,7 @@ def get_invocation_state(history, invocation_id) -> str:
 
     # Check for completion
     if 'Results' not in invocation['outputs']:
-        if summary['states']['error'] > 0:
+        if 'error' in summary['states'] and summary['states']['error'] > 0:
             return 'error'
         return 'running'
     else:
