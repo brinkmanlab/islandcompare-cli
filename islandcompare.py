@@ -4,6 +4,7 @@ import sys
 if sys.version_info[0] < 3:
     raise Exception("Must be using Python 3")
 
+import requests
 import traceback
 import argparse
 import json
@@ -13,6 +14,7 @@ import re
 from pathlib import Path
 from collections import namedtuple
 from typing import List, Dict
+from urllib.parse import urljoin
 
 try:
     import bioblend
@@ -20,8 +22,12 @@ try:
         raise ImportError("IslandCompare-CLI requires BioBlend v0.14.0")
     from bioblend.galaxy.objects import GalaxyInstance
     from bioblend.galaxy.objects.wrappers import History, HistoryDatasetAssociation, Workflow, Step
-    from bioblend.galaxy.dataset_collections import CollectionDescription, CollectionElement, SimpleElement
+    from bioblend.galaxy.dataset_collections import CollectionDescription, CollectionElement, HistoryDatasetCollectionElement, HistoryDatasetElement
     from bioblend.galaxy.workflows import WorkflowClient
+    from bioblend.galaxy.histories import HistoryClient
+    from bioblend.galaxy.datasets import DatasetClient
+    from bioblend.galaxy.jobs import JobsClient
+    from bioblend.galaxy.invocations import InvocationClient
 except ImportError as e:
     print(e, file=sys.stderr)
     print("\n\033[1m\033[91mBioBlend dependency not found.\033[0m Try 'pip install bioblend==0.14.0'.", file=sys.stderr)
@@ -41,8 +47,15 @@ ext_to_datatype = {
     "genbank": "genbank", "gbk": "genbank", "embl": "embl", "gbff": "genbank", "newick": "newick", "nwk": "newick"
 }
 
+WorkflowClient.set_max_get_retries(5)
+HistoryClient.set_max_get_retries(5)
+DatasetClient.set_max_get_retries(5)
+JobsClient.set_max_get_retries(5)
+InvocationClient.set_max_get_retries(5)
+
 
 # ======== Patched bioblend functions ===========
+# TODO Remove after upgrading to v0.16.0
 def get_invocations(self, workflow_id, history_id=None, user_id=None, include_terminal=True, limit=None, view='collection', step_details=False):
     url = self._invocations_url(workflow_id)
     params = {'include_terminal': include_terminal, 'view': view, 'step_details': step_details}
@@ -65,6 +78,10 @@ class ArgumentParser(argparse.ArgumentParser):
         self.print_help()
         print('\n\033[1m\033[91mERROR:\033[0m ' + message, file=sys.stderr)
         exit(2)
+
+
+class BlockingWorkflowError(Exception):
+    pass
 
 
 def get_workflow(conn: GalaxyInstance) -> Workflow:
@@ -101,10 +118,45 @@ def get_upload_history(conn) -> History:
         if upload_history_tag in history['tags']:
             return conn.histories.get(history['id'])
     else:
-        history = conn.histories.create(name=upload_history_name)
+        history = _retryConnection(conn.histories.create, name=upload_history_name)
         history.tags.append(upload_history_tag)
-        history.update(tags=history.tags)
+        _retryConnection(history.update, tags=history.tags)
         return history
+
+
+def get_invocation_state(history, invocation_id) -> str:
+    """
+    Helper to determine invocation overall state
+    :param history: History instance associated with invocation
+    :param invocation_id: Id of workflow invocation
+    :return: 'done', 'running' or 'error'
+    """
+
+    summary = history.gi.gi.invocations.get_invocation_summary(invocation_id)
+
+    if summary['populated_state'] in ('new',):
+        return 'running'
+
+    # Check for blocking errors
+    for state in ('new', 'upload', 'queued', 'running', 'setting_metadata'):
+        if state in summary['states'] and summary['states'][state] > 0:
+            return 'running'
+
+    invocation = history.gi.gi.invocations.show_invocation(invocation_id)
+
+    # Check for completion
+    if 'Results' not in invocation['outputs']:
+        if 'error' in summary['states'] and summary['states']['error'] > 0:
+            return 'error'
+        return 'running'
+    else:
+        for output in (history.get_dataset(output['id']) for _, output in invocation['outputs'].items()):
+            if output.state in ('error', 'paused'):
+                return 'error'
+            if output.state != 'ok':
+                'running'
+        else:
+            return 'done'
 
 
 def _flatten(l):
@@ -115,6 +167,19 @@ def _flatten(l):
         else:
             data.append(datum)
     return data
+
+
+def _retryConnection(f, *args, **kwargs):
+    for _ in range(5):
+        try:
+            return f(*args, **kwargs)
+        except (requests.exceptions.ConnectionError, bioblend.ConnectionError, ConnectionError) as e:
+            laste = e
+            print(e, file=sys.stderr)
+            print("Retrying..", sys.stderr)
+            time.sleep(1)
+            pass
+    raise laste
 
 
 def main(args: argparse.Namespace):
@@ -241,9 +306,11 @@ def upload(history: History, path: Path, label: str = '', type: str = None) -> H
         type = ext_to_datatype[path.suffix.lstrip('.')]
 
     if type:
-        return history.upload_file(str(path.resolve()), file_name=label, file_type=type)
+        hda = _retryConnection(history.upload_file, str(path.resolve()), file_name=label, file_type=type)
     else:
-        return history.upload_file(str(path.resolve()), file_name=label)
+        hda = _retryConnection(history.upload_file, str(path.resolve()), file_name=label)
+
+    return hda
 
 
 upload.cmd_help = 'Upload datasets'
@@ -278,7 +345,7 @@ def delete_data(history: History, id: str) -> None:
     """
     if not id:
         history.delete()
-    history.gi.gi.histories.delete_dataset(history.id, id, True)
+    _retryConnection(history.gi.gi.histories.delete_dataset, history.id, id, True)
 
 
 delete_data.cmd_help = 'Delete uploaded datasets'
@@ -315,26 +382,18 @@ def _prepare_inputs(workflow: Workflow, history_label: str, data: List[HistoryDa
     :return: Tuple of dict to send as inputs and output History instance
     """
     inputs = {label: input.pop() for label, input in workflow.input_labels_to_ids.items()}
-    history = workflow.gi.histories.create(history_label)
+    history = _retryConnection(workflow.gi.histories.create, history_label)
 
     history.tags.append(workflow.id)
     history.tags.append(application_tag)
-    history.update(tags=history.tags)
+    _retryConnection(history.update, tags=history.tags)
 
-    elements = [
-        CollectionElement(
-            name='data',
-            elements=[SimpleElement({'id': datum.id, 'src': datum.SRC, 'name': datum.name}) for datum in data]
-        )
-    ]
-    if newick:
-        elements.append(CollectionElement(
-            name='newick',
-            elements=[SimpleElement({'id': newick.id, 'src': newick.SRC, 'name': newick.name})]
-        ))
-    input_collection = history.create_dataset_collection(CollectionDescription('input_data', type='list:list', elements=elements))
+    elements = [HistoryDatasetElement(id=datum.id, name=datum.name) for datum in data]
+
+    input_collection = _retryConnection(history.create_dataset_collection, CollectionDescription('input_data', type='list', elements=elements))
     inputs = {
-        inputs['list:list of data and optional inputs']: {'id': input_collection.id, 'src': input_collection.SRC},
+        inputs['Input datasets']: {'id': input_collection.id, 'src': input_collection.SRC},
+        inputs['Phylogenetic tree in newick format']: {'id': newick.id, 'src': newick.SRC} if newick else None,
         inputs['Newick Identifiers']: 'False' if accession else 'True',
         inputs['Reference Genome']: reference_id or ''
     }
@@ -353,8 +412,9 @@ def invoke(workflow: Workflow, label: str, data: List[HistoryDatasetAssociation]
     :param reference_id: ID of reference genome to align drafts to
     :return: Invocation ID
     """
+    workflow.gi._wait_datasets(data, polling_interval=1, break_on_error=True)
     inputs, history = _prepare_inputs(workflow, label, data, newick, accession, reference_id)
-    invocation = workflow.gi.gi.workflows.invoke_workflow(workflow.id, inputs, history_id=history.id, allow_tool_state_corrections=True)
+    invocation = _retryConnection(workflow.gi.gi.workflows.invoke_workflow, workflow.id, inputs, history_id=history.id, allow_tool_state_corrections=True)
 
     return invocation['id'], history
 
@@ -383,7 +443,7 @@ def invocations(workflow: Workflow) -> List[Dict[str, str]]:
     for history in workflow.gi.histories.list():
         if not history.deleted and (workflow.id in history.tags or application_tag in history.tags):
             for invocation in workflow.gi.gi.workflows.get_invocations(workflow.id, history_id=history.id):
-                result.append({'id': invocation['id'], 'state': invocation['state'], 'label': history.name})
+                result.append({'id': invocation['id'], 'state': get_invocation_state(history, invocation['id']), 'label': history.name})
 
     return result
 
@@ -399,7 +459,7 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
     :param workflow: Workflow instance
     :param invocation_id: ID of workflow invocation
     :param path: Path to output folder
-    :return: Dict of paths of results keyed on label
+    :return: Dict of paths of results keyed on label or None if error
     """
     if not path.is_dir():
         results.cmd.error("Output path must be existing folder")
@@ -408,20 +468,40 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
     history = workflow.gi.histories.get(invocation['history_id'])
 
     print("Waiting for results..", file=sys.stderr)
-    while 'Results' not in invocation['outputs']:
-        time.sleep(workflow.POLLING_INTERVAL)
-        invocation = workflow.gi.gi.workflows.show_invocation(workflow.id, invocation_id)
+    try:
+        while True:
+            time.sleep(workflow.POLLING_INTERVAL)
+            state = get_invocation_state(history, invocation_id)
 
-    workflow.gi._wait_datasets([history.get_dataset(output['id']) for _, output in invocation['outputs'].items()], polling_interval=Workflow.POLLING_INTERVAL,
-                               break_on_error=True)
+            if state == 'error':
+                raise BlockingWorkflowError(f"Blocking error detected: {history.state_details}")
+
+            if state == 'done':
+                break
+
+    except BlockingWorkflowError as e:
+        print(e, file=sys.stderr)
+        return None
 
     print("Downloading..", file=sys.stderr)
+    invocation = workflow.gi.gi.workflows.show_invocation(workflow.id, invocation_id)
     ret = {}
     for label, output in invocation['outputs'].items():
         dataset = history.get_dataset(output['id'])
         file_path = (path / label).with_suffix('.' + dataset.file_ext).resolve()
         ret[label] = file_path
-        workflow.gi.gi.datasets.download_dataset(output['id'], file_path, False)
+        _retryConnection(workflow.gi.gi.datasets.download_dataset, output['id'], file_path, False)
+        print(file_path)
+
+    for label, output in invocation['output_collections'].items():
+        r = workflow.gi.gi.make_get_request(urljoin(workflow.gi.gi.base_url, f'/api/histories/{history.id}/contents/dataset_collections/{output["id"]}/download'))
+        r.raise_for_status()
+        file_path = (path / label).with_suffix('.zip').resolve()
+        ret[label] = file_path
+        with open(file_path, 'wb') as fp:
+            for chunk in r.iter_content(chunk_size=bioblend.CHUNK_SIZE):
+                if chunk:
+                    fp.write(chunk)
         print(file_path)
 
     return ret
@@ -444,14 +524,14 @@ def cancel(workflow: Workflow, invocation_id: str):
     # Cancel still running invocations
     invocation = workflow.gi.gi.workflows.show_invocation(workflow.id, invocation_id)
     try:
-        workflow.gi.gi.workflows.cancel_invocation(workflow.id, invocation_id)
+        _retryConnection(workflow.gi.gi.workflows.cancel_invocation, workflow.id, invocation_id)
     except bioblend.ConnectionError as e:
         if json.loads(e.body)['err_msg'] != 'Cannot cancel an inactive workflow invocation.':
             raise e
 
     # Delete output history
     history = workflow.gi.histories.get(invocation['history_id'])
-    history.delete()
+    _retryConnection(history.delete)
 
 
 cancel.cmd_help = 'Cancel or delete analysis'
@@ -465,33 +545,38 @@ def errors(workflow: Workflow, invocation_id: str):
     Get any errors that may have occurred during the workflow
     :param workflow: Workflow instance
     :param invocation_id: ID of workflow invocation
-    :return: Dict of strings containing error messages keyed on dataset ID
+    :return: Dict of strings containing error messages keyed on job ID
     """
     invocation = workflow.gi.gi.workflows.show_invocation(workflow.id, invocation_id)
     history = workflow.gi.histories.get(invocation['history_id'])
 
     err = {}
-
-    for step in invocation['steps']:
-        step = workflow.gi.gi.workflows.show_invocation_step(workflow.id, invocation_id, step['id'])
+    steps = invocation['steps']
+    for step in steps:
+        if step['subworkflow_invocation_id']:
+            steps.extend(workflow.gi.gi.invocations.show_invocation(step['subworkflow_invocation_id'])['steps'])
+            continue
+        step = workflow.gi.gi.invocations.show_invocation_step(invocation_id, step['id'])
         label = step['workflow_step_label']
         for job in step['jobs']:
             if job['state'] == 'error':
                 job = workflow.gi.jobs.get(job['id'], True).wrapped
                 # Resolve input identifier
-                input_identifier = map(lambda x: job['params'][f"{x}|__identifier__"], filter(lambda x: f"{x}|__identifier__" in job['params'], job['inputs'].keys()))
+                input_identifier = list(map(lambda x: job['params'][f"{x}|__identifier__"], filter(lambda x: f"{x}|__identifier__" in job['params'], job['inputs'].keys())))
                 if len(input_identifier) == 1: input_identifier = input_identifier[0]
                 elif len(input_identifier) > 1: input_identifier = f"[${input_identifier.join(', ')}]"
                 else: input_identifier = ''
 
+                err_str = ''
                 for key, val in job['outputs'].items():
-                    if val.src == 'hda':
-                        hda = history.get_dataset(val.id)
+                    if val['src'] == 'hda':
+                        hda = history.get_dataset(val['id'])
                         if hda.state == 'error':
-                            err_str = f"{label} on {input_identifier} - {key}: {hda.misc_info}\n"
-                            err_str += workflow.gi.gi.datasets.show_stderr(val.id) + '\n'
-                            err[val.id] = err_str
+                            err_str += f"{label} on {input_identifier} - {key}: {hda.misc_info}\n"
                     # TODO hdca
+
+                err_str += job['stderr'] + '\n'
+                err[job['id']] = err_str
     return err
 
 
@@ -535,18 +620,21 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
     print("Analysis ID:", file=sys.stderr)
     print(invocation_id)
     ret = results(workflow, invocation_id, output_path)
+    print("Collecting any errors..", file=sys.stderr)
     err = errors(workflow, invocation_id)
     for e in err.values():
         print(e)
+    if len(err) == 0:
+        print('No errors found', file=sys.stderr)
 
     print(f"Wall time: {(time.time() - start)/60} minutes", file=sys.stderr)
     print("Cleaning up..", file=sys.stderr)
-    history.delete(purge=True)
+    _retryConnection(history.delete, purge=True)
     for hda in uploads:
-        hda.delete(purge=True)
+        _retryConnection(hda.delete, purge=True)
 
     if newick:
-        newick.delete(purge=True)
+        _retryConnection(newick.delete, purge=True)
 
     return ret, err
 
