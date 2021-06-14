@@ -468,6 +468,7 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
     history = workflow.gi.histories.get(invocation['history_id'])
 
     print("Waiting for results..", file=sys.stderr)
+    start = time.time()
     try:
         while True:
             time.sleep(workflow.POLLING_INTERVAL)
@@ -483,6 +484,7 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
         print(e, file=sys.stderr)
         return None
 
+    print(f"Waited {(time.time() - start)/60} minutes for results to become available", file=sys.stderr)
     print("Downloading..", file=sys.stderr)
     invocation = workflow.gi.gi.workflows.show_invocation(workflow.id, invocation_id)
     ret = {}
