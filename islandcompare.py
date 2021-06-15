@@ -484,7 +484,7 @@ def results(workflow: Workflow, invocation_id: str, path: Path):
         print(e, file=sys.stderr)
         return None
 
-    print(f"Waited {(time.time() - start)/60} minutes for results to become available", file=sys.stderr)
+    print(f"Waited {(time.time() - start)/60:.2f} minutes for results to become available", file=sys.stderr)
     print("Downloading..", file=sys.stderr)
     invocation = workflow.gi.gi.workflows.show_invocation(workflow.id, invocation_id)
     ret = {}
@@ -629,7 +629,7 @@ def round_trip(upload_history: History, paths: List[Path], workflow: Workflow, l
     if len(err) == 0:
         print('No errors found', file=sys.stderr)
 
-    print(f"Wall time: {(time.time() - start)/60} minutes", file=sys.stderr)
+    print(f"Wall time: {(time.time() - start)/60:.2f} minutes", file=sys.stderr)
     print("Cleaning up..", file=sys.stderr)
     _retryConnection(history.delete, purge=True)
     for hda in uploads:
