@@ -18,8 +18,8 @@ from urllib.parse import urljoin
 
 try:
     import bioblend
-    if bioblend.get_version() != '0.14.0':
-        raise ImportError("IslandCompare-CLI requires BioBlend v0.14.0")
+    if bioblend.get_version() < '0.18.0':
+        raise ImportError("IslandCompare-CLI requires BioBlend >= v0.18.0")
     from bioblend.galaxy.objects import GalaxyInstance
     from bioblend.galaxy.objects.wrappers import History, HistoryDatasetAssociation, Workflow, Step
     from bioblend.galaxy.dataset_collections import CollectionDescription, CollectionElement, HistoryDatasetCollectionElement, HistoryDatasetElement
@@ -28,12 +28,14 @@ try:
     from bioblend.galaxy.datasets import DatasetClient
     from bioblend.galaxy.jobs import JobsClient
     from bioblend.galaxy.invocations import InvocationClient
+    from bioblend.galaxy import Client
+    from bioblend import ConnectionError
 except ImportError as e:
     print(e, file=sys.stderr)
-    print("\n\033[1m\033[91mBioBlend dependency not found.\033[0m Try 'pip install bioblend==0.14.0'.", file=sys.stderr)
+    print("\n\033[1m\033[91mBioBlend dependency not found.\033[0m Try 'pip install bioblend==0.18.0'.", file=sys.stderr)
     exit(1)
 
-__version__ = '0.1.0'
+__version__ = '0.2.0'
 
 #import logging
 #logging.basicConfig(level=logging.DEBUG)
@@ -55,18 +57,31 @@ InvocationClient.set_max_get_retries(5)
 
 
 # ======== Patched bioblend functions ===========
-# TODO Remove after upgrading to v0.16.0
-def get_invocations(self, workflow_id, history_id=None, user_id=None, include_terminal=True, limit=None, view='collection', step_details=False):
-    url = self._invocations_url(workflow_id)
-    params = {'include_terminal': include_terminal, 'view': view, 'step_details': step_details}
-    if history_id: params['history_id'] = history_id
-    if user_id: params['user_id'] = user_id
-    if limit: params['limit'] = limit
-    return self._get(url=url, params=params)
+# TODO Remove after upgrading to v0.19.0
+def _delete(self, payload=None, id=None, deleted=False, contents=None, url=None, params=None):
+    """
+    Do a generic DELETE request, composing the url from the contents of the
+    arguments. Alternatively, an explicit ``url`` can be provided to use
+    for the request.
 
+    :type payload: dict
+    :param payload: additional parameters to send in the body of the request
 
-WorkflowClient.get_invocations = get_invocations
-Workflow.BASE_ATTRS += ('owner', 'number_of_steps', 'show_in_tool_panel', 'latest_workflow_uuid')
+    :return: The decoded response.
+    """
+    if not url:
+        url = self._make_url(module_id=id, deleted=deleted, contents=contents)
+    r = self.gi.make_delete_request(url, payload=payload, params=params)
+    if 200 <= r.status_code < 300:
+        return r.json()
+    # @see self.body for HTTP response body
+    raise ConnectionError(
+        f"Unexpected HTTP status code: {r.status_code}",
+        body=r.text,
+        status_code=r.status_code,
+    )
+
+Client._delete = _delete
 # =========================================================
 
 
