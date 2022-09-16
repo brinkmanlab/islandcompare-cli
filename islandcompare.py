@@ -147,6 +147,11 @@ def get_invocation_state(history, invocation_id) -> str:
     :return: 'done', 'running' or 'error'
     """
 
+    invocation = history.gi.gi.invocations.show_invocation(invocation_id)
+
+    if 'state' in invocation and invocation['state'] == "failed":
+        return 'error'
+
     summary = history.gi.gi.invocations.get_invocation_summary(invocation_id)
 
     if summary['populated_state'] in ('new',):
